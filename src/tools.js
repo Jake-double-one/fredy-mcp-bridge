@@ -7,6 +7,8 @@
  * Bridge-Tool wird automatisch ausgeblendet.
  */
 
+import { UPDATE_SCHEMA, mergeProfile, validateUpdate } from './finance.js';
+
 const idList = {
   type: 'array',
   items: { type: 'string', minLength: 1 },
@@ -231,6 +233,68 @@ export const BRIDGE_TOOLS = [
       const res = await fredy.asUser(username, 'PUT', `/api/jobs/${encodeURIComponent(jobId)}/status`, { status: args.enabled });
       if (res.status !== 200) return fredyFailure(res.status, res.data, 'Could not change the job.');
       return text(args.enabled ? 'Job enabled.' : 'Job paused.');
+    },
+  },
+  {
+    name: 'get_finance_profile',
+    permission: 'finance.read',
+    definition: {
+      title: 'Get finance profile',
+      description:
+        "Read the user's finance profile from Fredy's financing calculator: household (net incomes, living costs, existing loans), " +
+        'rent settings, purchase settings (price, equity, state, closing-cost rates) and loan scenarios. ' +
+        '"saved" is what the user stored, "effective" includes Fredy\'s defaults for anything not stored. ' +
+        'Also returns the computed monthly budget and whether the profile is complete for buying and for renting.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: { title: 'Get finance profile', readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async run(fredy, username) {
+      const settings = await fredy.asUser(username, 'GET', '/api/user/settings');
+      if (settings.status !== 200) return fredyFailure(settings.status, settings.data, 'Could not read the finance profile.');
+      const summary = await fredy.asUser(username, 'GET', '/api/finance/profile-summary');
+      if (summary.status !== 200) return fredyFailure(summary.status, summary.data, 'Could not read the finance summary.');
+      return text({
+        saved: settings.data?.finance_profile ?? null,
+        effective: summary.data?.profile,
+        budget: summary.data?.budget,
+        thresholds: summary.data?.thresholds,
+        completeForBuying: summary.data?.isComplete,
+        completeForRenting: summary.data?.rentComplete,
+      });
+    },
+  },
+  {
+    name: 'update_finance_profile',
+    permission: 'finance.write',
+    definition: {
+      title: 'Update finance profile',
+      description:
+        "Change the user's finance profile in Fredy (the same settings as on Fredy's financing page). " +
+        'Pass ONLY the fields that should change – everything else stays as it is. All amounts are EUR, incomes and costs are MONTHLY NET values, rates are percent. ' +
+        'scenarios is the complete list of loan scenarios and replaces the stored one. ' +
+        'Changing bundesland resets the transfer tax to that state\'s rate unless grunderwerbsteuerPct is given. ' +
+        'If any field is invalid, nothing is saved and every problem is reported. Call get_finance_profile first when unsure about the current values. ' +
+        'These values drive Fredy\'s affordability verdicts and filters.',
+      inputSchema: UPDATE_SCHEMA,
+      annotations: { title: 'Update finance profile', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async run(fredy, username, args) {
+      const errors = validateUpdate(args);
+      if (errors.length) return failure(`Nothing was saved:\n- ${errors.join('\n- ')}`);
+      const settings = await fredy.asUser(username, 'GET', '/api/user/settings');
+      if (settings.status !== 200) return fredyFailure(settings.status, settings.data, 'Could not read the finance profile.');
+      const next = mergeProfile(settings.data?.finance_profile ?? null, args);
+      const saved = await fredy.asUser(username, 'POST', '/api/user/settings/finance-profile', { finance_profile: next });
+      if (saved.status !== 200) return fredyFailure(saved.status, saved.data, 'Could not save the finance profile.');
+      const summary = await fredy.asUser(username, 'GET', '/api/finance/profile-summary');
+      return text({
+        saved: true,
+        changed: Object.keys(args),
+        effective: summary.data?.profile,
+        budget: summary.data?.budget,
+        completeForBuying: summary.data?.isComplete,
+        completeForRenting: summary.data?.rentComplete,
+      });
     },
   },
 ];

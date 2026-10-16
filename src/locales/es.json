@@ -1,15 +1,15 @@
 {
-  "_meta": { "name": "Español", "locale": "es-ES" },
-
+  "_meta": {
+    "name": "Español",
+    "locale": "es-ES"
+  },
   "layout.signOut": "Cerrar sesión",
   "layout.admin": "Admin",
   "layout.footer": "Accede con tu cuenta de Fredy · Fredy decide lo que puedes ver y hacer",
-
   "common.back": "Volver",
   "common.save": "Guardar",
   "common.toOverview": "Volver al resumen",
   "common.never": "nunca",
-
   "login.title": "Entrar",
   "login.lead": "Con tu usuario y contraseña de Fredy.",
   "login.username": "Usuario",
@@ -20,7 +20,6 @@
   "login.errorUnreachable": "Ahora mismo no se puede contactar con Fredy.",
   "login.errorFredyRateLimit": "Fredy ha contado demasiados intentos de acceso. Vuelve a intentarlo más tarde.",
   "login.errorInvalid": "Usuario o contraseña incorrectos.",
-
   "error.forbiddenTitle": "Sin acceso",
   "error.adminOnly": "Solo para administradores de Fredy.",
   "error.csrfTitle": "Caducado",
@@ -29,7 +28,6 @@
   "error.requestExpired": "Esta solicitud de conexión ha caducado o no se reconoce. Vuelve a conectar desde tu cliente.",
   "error.notFoundTitle": "No encontrado",
   "error.connectionNotFound": "Esta conexión no existe (o ya no existe).",
-
   "perm.group.fredy": "Lo que ofrece Fredy",
   "perm.group.bridge": "Extras del bridge (opcionales)",
   "perm.lockedByRole": "Un administrador lo ha bloqueado para tu rol.",
@@ -49,7 +47,10 @@
   "perm.jobs.run.desc": "Lanzar una búsqueda fuera del horario programado.",
   "perm.jobs.toggle.label": "Activar y pausar búsquedas",
   "perm.jobs.toggle.desc": "Encender o apagar búsquedas.",
-
+  "perm.finance.read.label": "Ver el perfil de financiación",
+  "perm.finance.read.desc": "Leer tus datos de la Financiación de Fredy: ingresos, gastos de vida, préstamos existentes, datos de compra y escenarios de préstamo.",
+  "perm.finance.write.label": "Cambiar el perfil de financiación",
+  "perm.finance.write.desc": "Cambiar esos datos: de ellos dependen las valoraciones y filtros de asequibilidad de Fredy. Solo se cambian los campos indicados.",
   "consent.title": "Autorizar conexión",
   "consent.lead": "{{client}} quiere conectarse a tu cuenta de Fredy {{user}}.",
   "consent.redirect": "Redirige a {{host}}",
@@ -58,7 +59,6 @@
   "consent.footnote": "Puedes cambiar los permisos, bloquear herramientas concretas de Fredy o desconectar en cualquier momento.",
   "consent.connect": "Conectar",
   "consent.cancel": "Cancelar",
-
   "conn.connectedAt": "conectado {{date}}",
   "conn.lastUsed": "último uso {{date}}",
   "conn.edit": "Editar permisos",
@@ -67,7 +67,6 @@
   "conn.lockedByCeiling": "Bloqueado ahora por el límite del rol",
   "conn.blockedTools": "{{count}} herramienta(s) de Fredy bloqueada(s)",
   "conn.noPermissions": "sin permisos",
-
   "dash.title": "Resumen",
   "dash.proxyWarning": "Fredy no confirma tu usuario mediante «Acceso gestionado por el proxy inverso». Las herramientas solo funcionarán cuando esté configurado en Fredy.",
   "dash.proxyWarningAdmin": "Mira «Estado» más abajo.",
@@ -88,7 +87,6 @@
   "flash.saved": "Guardado.",
   "flash.revoked": "Conexión desconectada.",
   "flash.rolesSaved": "Límites por rol guardados.",
-
   "connPage.title": "Editar permisos",
   "connPage.lead": "Cuenta de Fredy {{user}}. Los cambios se aplican a partir de la siguiente llamada a una herramienta.",
   "connPage.toolsHeading": "Herramientas concretas de Fredy",
@@ -99,7 +97,6 @@
   "connPage.overwrites": "sobrescribe datos",
   "connPage.toolsUnavailable": "Ahora mismo no se puede obtener la lista de herramientas de Fredy: {{error}}",
   "connPage.ownerUnconfirmed": "Fredy no confirma ahora mismo al titular de esta conexión.",
-
   "roles.title": "Límites por rol",
   "roles.lead": "Lo máximo que los miembros de un rol de Fredy pueden conceder a sus conexiones. Si retiras aquí un permiso, se desactiva al instante en todas las conexiones de ese rol; la selección de los usuarios se conserva y vuelve a aplicarse cuando lo concedas de nuevo.",
   "roles.permission": "Permiso",
@@ -108,7 +105,6 @@
   "roles.sourceFredy": "Fredy",
   "roles.sourceBridge": "Extra del bridge",
   "roles.note": "Aparte de esto, cada usuario solo ve y cambia lo que Fredy le permite (sus propias búsquedas y las compartidas con él).",
-
   "check.fredy": "Fredy accesible",
   "check.endpoints": "Endpoints de Fredy",
   "check.proxy": "Acceso gestionado por el proxy inverso",

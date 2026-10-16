@@ -23,6 +23,8 @@ const ENDPOINTS = [
   ['PUT', '/api/jobs/selftest/status'],
   ['GET', '/api/admin/users/selftest/mcp-token'],
   ['GET', '/api/user/settings'],
+  ['POST', '/api/user/settings/finance-profile'],
+  ['GET', '/api/finance/profile-summary'],
   ['POST', '/api/mcp'],
 ];
 

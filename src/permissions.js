@@ -53,6 +53,16 @@ export const PERMISSIONS = [
     source: 'bridge',
     defaultOn: false,
   },
+  {
+    key: 'finance.read',
+    source: 'bridge',
+    defaultOn: false,
+  },
+  {
+    key: 'finance.write',
+    source: 'bridge',
+    defaultOn: false,
+  },
 ];
 
 export const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
@@ -64,7 +74,7 @@ export const ROLES = { admin: 'admin', user: 'user' };
 /** Ausgangswerte der Rollen-Obergrenzen, solange ein Admin nichts anderes eingestellt hat. */
 export const DEFAULT_ROLE_POLICIES = {
   admin: [...PERMISSION_KEYS],
-  user: ['fredy.read', 'fredy.write', 'listings.hide', 'listings.status', 'listings.scam'],
+  user: ['fredy.read', 'fredy.write', 'listings.hide', 'listings.status', 'listings.scam', 'finance.read', 'finance.write'],
 };
 
 export function sanitizePermissions(list) {

@@ -20,7 +20,8 @@ MCP-Client (Claude.ai, ChatGPT, …)
 - **Durchreichen:** Alle Tools von Fredys MCP erscheinen unverändert – auch solche, die Fredy künftig
   neu mitbringt.
 - **Ergänzen:** Inserate löschen (ausblenden) und wiederherstellen, endgültig löschen,
-  Bewerbungsstatus, Betrugsmarkierung, Suchjob starten, Suchjob aktivieren/pausieren.
+  Bewerbungsstatus, Betrugsmarkierung, Suchjob starten, Suchjob aktivieren/pausieren,
+  Finanzprofil (Fredys Finanzierung) ansehen und gezielt ändern.
 - **OAuth für Remote-Connectoren** mit eigener Login-Seite – angemeldet wird mit dem **Fredy-Konto**.
 - **Rechte pro Verbindung:** Was Fredy anbietet, ist standardmäßig an; alle Zusätze sind Opt-in.
   Einzelne Fredy-Tools lassen sich pro Verbindung sperren. Verbindungen jederzeit trennbar.

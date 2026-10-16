@@ -83,6 +83,9 @@ const MIGRATIONS = [
   `,
   // Sprache der Web-Sitzung (aus dem Fredy-Profil).
   `ALTER TABLE web_sessions ADD COLUMN lang TEXT;`,
+  // Neue Rechte fürs Finanzprofil: in bereits gespeicherten Rollen-Obergrenzen erlauben, wie im
+  // Standard. Jede Verbindung muss sie trotzdem einzeln einschalten (Opt-in).
+  `UPDATE role_policies SET allowed = json_insert(json_insert(allowed, '$[#]', 'finance.read'), '$[#]', 'finance.write');`,
 ];
 
 export function sha256(value) {
