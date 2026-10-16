@@ -1,6 +1,11 @@
 # Fredy MCP Bridge – schlanker Node-Container
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
+# Build-Werkzeuge, falls better-sqlite3 für die Node-/CPU-Kombination kein fertiges Binary hat.
+# Nur in dieser Stufe – das fertige Image enthält sie nicht.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
