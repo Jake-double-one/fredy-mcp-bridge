@@ -149,5 +149,15 @@
   "tokens.header": "Intestazione",
   "tokens.howto": "Aggiungi l'URL nel tuo client come server MCP remoto (Streamable HTTP) e invia il token come token Bearer nell'intestazione Authorization.",
   "tokens.done": "Fatto",
-  "tokens.defaultName": "Token di accesso"
+  "tokens.defaultName": "Token di accesso",
+  "perm.listings.price_history.label": "Vedere lo storico dei prezzi",
+  "perm.listings.price_history.desc": "Vedere come è cambiato il prezzo di un annuncio da quando Fredy l'ha trovato.",
+  "perm.places.read.label": "Vedere luoghi e tempi di percorrenza",
+  "perm.places.read.desc": "Leggere i luoghi verso cui Fredy misura i tempi di percorrenza (lavoro, scuola, supermercato più vicino…) e ottenere i percorsi esatti per singoli annunci.",
+  "perm.places.write.label": "Modificare i luoghi",
+  "perm.places.write.desc": "Aggiungere, modificare e rimuovere luoghi – indirizzi o tipi di luogo, ad es. la scuola più vicina. Poi Fredy ricalcola i tempi di percorrenza.",
+  "perm.applicant.read.label": "Vedere il profilo del candidato",
+  "perm.applicant.read.desc": "Leggere il tuo profilo di candidato e i modelli di lettera e vedere l'anteprima delle lettere di candidatura.",
+  "perm.applicant.write.label": "Modificare profilo e modelli",
+  "perm.applicant.write.desc": "Modificare il tuo profilo di candidato e scrivere i tuoi modelli di lettera di candidatura."
 }

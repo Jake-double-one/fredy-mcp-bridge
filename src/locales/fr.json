@@ -149,5 +149,15 @@
   "tokens.header": "En-tête",
   "tokens.howto": "Ajoutez l'URL dans votre client comme serveur MCP distant (Streamable HTTP) et envoyez le jeton comme jeton Bearer dans l'en-tête Authorization.",
   "tokens.done": "Terminé",
-  "tokens.defaultName": "Jeton d'accès"
+  "tokens.defaultName": "Jeton d'accès",
+  "perm.listings.price_history.label": "Voir l'historique des prix",
+  "perm.listings.price_history.desc": "Voir comment le prix d'une annonce a évolué depuis que Fredy l'a trouvée.",
+  "perm.places.read.label": "Voir les lieux et temps de trajet",
+  "perm.places.read.desc": "Lire les lieux vers lesquels Fredy mesure les temps de trajet (travail, école, supermarché le plus proche…) et obtenir les trajets exacts pour une annonce.",
+  "perm.places.write.label": "Modifier les lieux",
+  "perm.places.write.desc": "Ajouter, modifier et supprimer des lieux – adresses ou types de lieux, p. ex. l'école la plus proche. Fredy recalcule ensuite les temps de trajet.",
+  "perm.applicant.read.label": "Voir le profil de candidat",
+  "perm.applicant.read.desc": "Lire votre profil de candidat et vos modèles de lettre, et prévisualiser des lettres de candidature.",
+  "perm.applicant.write.label": "Modifier le profil et les modèles",
+  "perm.applicant.write.desc": "Modifier votre profil de candidat et rédiger vos propres modèles de lettre de candidature."
 }

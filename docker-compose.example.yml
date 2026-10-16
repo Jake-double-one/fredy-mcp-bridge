@@ -28,6 +28,8 @@ services:
       # --- optional (Standardwerte stehen dahinter) ---
       # Höchstzahl Detailseiten-Abrufe beim Portal pro Benutzer und Stunde (Standard 20)
       # DETAILS_REFRESH_PER_HOUR: 20
+      # Höchstzahl exakter Fahrzeit-Abfragen pro Benutzer und Stunde (Standard 30)
+      # TRAVEL_TIMES_PER_HOUR: 30
       # Fredy-Admin, mit dem die MCP-Tokens der Benutzer abgeholt werden
       # (Standard: der Admin, der sich zuletzt an der Bridge angemeldet hat)
       # FREDY_ADMIN_USERNAME: dein-admin

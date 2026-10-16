@@ -102,6 +102,8 @@ const MIGRATIONS = [
     expires_at INTEGER
   );
   `,
+  // Preisverlauf, Orte/Fahrzeiten, Bewerberprofil: in bestehenden Obergrenzen erlauben (Opt-in pro Verbindung).
+  `UPDATE role_policies SET allowed = json_insert(allowed, '$[#]', 'listings.price_history', '$[#]', 'places.read', '$[#]', 'places.write', '$[#]', 'applicant.read', '$[#]', 'applicant.write');`,
 ];
 
 export const STATIC_TOKEN_PREFIX = 'fmb_';

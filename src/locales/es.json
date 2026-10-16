@@ -149,5 +149,15 @@
   "tokens.header": "Cabecera",
   "tokens.howto": "Añade la URL en tu cliente como servidor MCP remoto (Streamable HTTP) y envía el token como token Bearer en la cabecera Authorization.",
   "tokens.done": "Listo",
-  "tokens.defaultName": "Token de acceso"
+  "tokens.defaultName": "Token de acceso",
+  "perm.listings.price_history.label": "Ver el historial de precios",
+  "perm.listings.price_history.desc": "Ver cómo ha cambiado el precio de un anuncio desde que Fredy lo encontró.",
+  "perm.places.read.label": "Ver lugares y tiempos de viaje",
+  "perm.places.read.desc": "Leer los lugares hasta los que Fredy mide tiempos de viaje (trabajo, colegio, supermercado más cercano…) y consultar trayectos exactos de anuncios concretos.",
+  "perm.places.write.label": "Cambiar lugares",
+  "perm.places.write.desc": "Añadir, cambiar y quitar lugares: direcciones o tipos de lugar, p. ej. el colegio más cercano. Después Fredy recalcula los tiempos de viaje.",
+  "perm.applicant.read.label": "Ver el perfil de solicitante",
+  "perm.applicant.read.desc": "Leer tu perfil de solicitante y tus plantillas de carta y ver cartas de solicitud en vista previa.",
+  "perm.applicant.write.label": "Cambiar el perfil y las plantillas",
+  "perm.applicant.write.desc": "Cambiar tu perfil de solicitante y escribir tus propias plantillas de carta de solicitud."
 }

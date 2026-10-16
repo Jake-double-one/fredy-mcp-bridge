@@ -24,6 +24,13 @@ MCP-Client (Claude.ai, ChatGPT, …)
   Finanzprofil (Fredys Finanzierung) ansehen und gezielt ändern, Inseratsdetails beim Portal
   nachladen (wie „Aktualisieren“ bei der Beschreibung; gebremst auf einen Abruf gleichzeitig und
   `DETAILS_REFRESH_PER_HOUR` pro Stunde, Standard 20).
+- **Preisverlauf** eines Inserats abrufen (inkl. Veränderung seit dem Fund).
+- **Orte für Fahrzeiten** ansehen, hinzufügen, ändern, umbenennen und entfernen – feste Adressen
+  (Arbeit, eine bestimmte Schule) oder Ortstypen wie „nächste Schule“, die Fredy pro Inserat sucht;
+  jeweils mit Verkehrsmittel und Abfahrtszeit. Dazu **exakte Fahrzeiten** für einzelne Inserate
+  (gebremst über `TRAVEL_TIMES_PER_HOUR`, Standard 30).
+- **Bewerberprofil und Anschreiben-Vorlagen** ansehen und ändern; Vorlagen-Entwürfe lassen sich mit
+  dem echten Profil in der Vorschau prüfen, Tippfehler in Platzhaltern werden gemeldet.
 - **OAuth für Remote-Connectoren** mit eigener Login-Seite – angemeldet wird mit dem **Fredy-Konto**.
 - **Zugangs-Tokens für Clients ohne OAuth** (OpenClaw, n8n, Skripte): auf der Übersicht erzeugen,
   mit Rechten und Gültigkeit (30/90/365 Tage oder ohne Ablauf). Ein Token ist eine normale Verbindung
@@ -64,6 +71,7 @@ Netz `fredy-net` mit fester IP für die Bridge und die Stack-Variable `FREDY_PRO
 | `FREDY_PROXY_USER_HEADER` | | Standard `Remote-User` |
 | `FREDY_PROXY_SECRET_HEADER` | | Standard `X-Fredy-Proxy-Secret` |
 | `FREDY_ADMIN_USERNAME` | | Fredy-Admin zum Abholen der MCP-Tokens; ohne Angabe der zuletzt an der Bridge angemeldete Admin |
+| `TRAVEL_TIMES_PER_HOUR` | | Höchstzahl exakter Fahrzeit-Abfragen pro Benutzer und Stunde, Standard 30 |
 | `DETAILS_REFRESH_PER_HOUR` | | Höchstzahl Detailseiten-Abrufe pro Benutzer und Stunde, Standard 20 |
 | `TRUST_PROXY` | | Wem X-Forwarded-For geglaubt wird, Standard: private Netze |
 | `TZ` | | Zeitzone für die Anzeige |

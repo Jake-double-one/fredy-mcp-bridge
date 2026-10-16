@@ -49,6 +49,11 @@ export const PERMISSIONS = [
     defaultOn: false,
   },
   {
+    key: 'listings.price_history',
+    source: 'bridge',
+    defaultOn: false,
+  },
+  {
     key: 'jobs.run',
     source: 'bridge',
     defaultOn: false,
@@ -68,6 +73,10 @@ export const PERMISSIONS = [
     source: 'bridge',
     defaultOn: false,
   },
+  { key: 'places.read', source: 'bridge', defaultOn: false },
+  { key: 'places.write', source: 'bridge', defaultOn: false },
+  { key: 'applicant.read', source: 'bridge', defaultOn: false },
+  { key: 'applicant.write', source: 'bridge', defaultOn: false },
 ];
 
 export const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
@@ -76,10 +85,13 @@ const KNOWN = new Set(PERMISSION_KEYS);
 /** Fredy kennt genau zwei Rollen. Texte stehen in den Sprachdateien (roles.admin / roles.user). */
 export const ROLES = { admin: 'admin', user: 'user' };
 
+// Rechte, die nur die eigenen Daten des Benutzers betreffen – für alle Rollen erlaubt.
+const NEW_OWN_DATA = ['listings.price_history', 'places.read', 'places.write', 'applicant.read', 'applicant.write'];
+
 /** Ausgangswerte der Rollen-Obergrenzen, solange ein Admin nichts anderes eingestellt hat. */
 export const DEFAULT_ROLE_POLICIES = {
   admin: [...PERMISSION_KEYS],
-  user: ['fredy.read', 'fredy.write', 'listings.hide', 'listings.status', 'listings.scam', 'listings.details', 'finance.read', 'finance.write'],
+  user: ['fredy.read', 'fredy.write', 'listings.hide', 'listings.status', 'listings.scam', 'listings.details', 'finance.read', 'finance.write', ...NEW_OWN_DATA],
 };
 
 export function sanitizePermissions(list) {

@@ -26,6 +26,12 @@ const ENDPOINTS = [
   ['GET', '/api/user/settings'],
   ['POST', '/api/user/settings/finance-profile'],
   ['GET', '/api/finance/profile-summary'],
+  ['GET', '/api/listings/selftest/priceHistory'],
+  ['POST', '/api/user/settings/home-address'],
+  ['GET', '/api/transit/travel-times'],
+  ['POST', '/api/user/settings/applicant-profile'],
+  ['POST', '/api/user/settings/application-templates'],
+  ['POST', '/api/user/settings/application-preview'],
   ['POST', '/api/mcp'],
 ];
 

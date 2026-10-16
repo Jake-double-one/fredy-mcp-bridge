@@ -149,5 +149,15 @@
   "tokens.header": "Header",
   "tokens.howto": "Trage die URL in deinem Client als Remote-MCP-Server (Streamable HTTP) ein und sende den Token als Bearer-Token im Authorization-Header.",
   "tokens.done": "Fertig",
-  "tokens.defaultName": "Zugangs-Token"
+  "tokens.defaultName": "Zugangs-Token",
+  "perm.listings.price_history.label": "Preisverlauf ansehen",
+  "perm.listings.price_history.desc": "Sehen, wie sich der Preis eines Inserats seit dem Fund durch Fredy verändert hat.",
+  "perm.places.read.label": "Orte und Fahrzeiten ansehen",
+  "perm.places.read.desc": "Die Orte lesen, zu denen Fredy Fahrzeiten misst (Arbeit, Schule, nächster Supermarkt …), und exakte Verbindungen für einzelne Inserate abrufen.",
+  "perm.places.write.label": "Orte ändern",
+  "perm.places.write.desc": "Orte hinzufügen, ändern und entfernen – Adressen oder Ortstypen wie „nächste Schule“. Fredy berechnet die Fahrzeiten danach neu.",
+  "perm.applicant.read.label": "Bewerberprofil ansehen",
+  "perm.applicant.read.desc": "Dein Bewerberprofil und deine Anschreiben-Vorlagen lesen und Anschreiben in der Vorschau ansehen.",
+  "perm.applicant.write.label": "Bewerberprofil und Vorlagen ändern",
+  "perm.applicant.write.desc": "Dein Bewerberprofil ändern und eigene Anschreiben-Vorlagen schreiben."
 }

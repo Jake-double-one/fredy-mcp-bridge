@@ -149,5 +149,15 @@
   "tokens.header": "Header",
   "tokens.howto": "Add the URL as a remote MCP server (Streamable HTTP) in your client and send the token as a Bearer token in the Authorization header.",
   "tokens.done": "Done",
-  "tokens.defaultName": "Access token"
+  "tokens.defaultName": "Access token",
+  "perm.listings.price_history.label": "View price history",
+  "perm.listings.price_history.desc": "See how a listing's price has changed since Fredy found it.",
+  "perm.places.read.label": "View places and travel times",
+  "perm.places.read.desc": "Read the places Fredy measures travel times to (work, school, nearest supermarket …) and fetch exact journeys for single listings.",
+  "perm.places.write.label": "Change places",
+  "perm.places.write.desc": "Add, change and remove places such as addresses or place types (e.g. nearest school). Fredy then recalculates travel times.",
+  "perm.applicant.read.label": "View applicant profile",
+  "perm.applicant.read.desc": "Read your applicant profile and letter templates and preview application letters.",
+  "perm.applicant.write.label": "Change applicant profile and templates",
+  "perm.applicant.write.desc": "Change your applicant profile and write your own application letter templates."
 }

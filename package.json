@@ -1,6 +1,6 @@
 {
   "name": "fredy-mcp-bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Update-resistenter MCP-Sidecar f\u00fcr Fredy: reicht Fredys MCP-Tools durch und erg\u00e4nzt eigene Tools, mit OAuth und Rechten pro Verbindung.",
   "type": "module",

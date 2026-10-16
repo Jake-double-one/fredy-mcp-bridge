@@ -8,6 +8,8 @@
  */
 
 import { UPDATE_SCHEMA, mergeProfile, validateUpdate } from './finance.js';
+import { text, failure, fredyFailure, requireString } from './toolHelpers.js';
+import { PROFILE_TOOLS } from './profileTools.js';
 
 const idList = {
   type: 'array',
@@ -32,28 +34,6 @@ const DETAIL_STATUS = {
 };
 
 const HIDDEN_FIELDS = ['id', 'title', 'price', 'size', 'rooms', 'address', 'provider', 'link', 'job_name', 'created_at'];
-
-function text(value) {
-  return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }] };
-}
-
-function failure(message) {
-  return { content: [{ type: 'text', text: message }], isError: true };
-}
-
-function fredyFailure(status, data, fallback) {
-  const detail = data?.message || data?.error || (typeof data === 'string' ? data : null);
-  if (status === 401) {
-    return failure('Fredy did not accept the bridge sign-in for this user (HTTP 401). Ask the admin to check the reverse-proxy sign-in settings in Fredy.');
-  }
-  return failure(`${fallback} Fredy answered HTTP ${status}${detail ? `: ${detail}` : '.'}`);
-}
-
-function requireString(args, name) {
-  const value = args?.[name];
-  if (typeof value !== 'string' || value.trim() === '') throw new Error(`"${name}" is required.`);
-  return value.trim();
-}
 
 function requireIds(args) {
   const ids = args?.ids;
@@ -352,6 +332,7 @@ export const BRIDGE_TOOLS = [
       });
     },
   },
+  ...PROFILE_TOOLS,
 ];
 
 export const BRIDGE_TOOL_NAMES = new Set(BRIDGE_TOOLS.map((t) => t.name));
