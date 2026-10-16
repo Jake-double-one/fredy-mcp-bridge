@@ -1,0 +1,22 @@
+{
+  "name": "fredy-mcp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Update-resistenter MCP-Sidecar für Fredy: reicht Fredys MCP-Tools durch und ergänzt eigene Tools, mit OAuth und Rechten pro Verbindung.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "licenses": "node scripts/licenses.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.3.0"
+  }
+}

@@ -1,0 +1,42 @@
+# Beispiel-Stack für Portainer: Fredy + Fredy MCP Bridge.
+# FREDY_PROXY_SECRET als Stack-Umgebungsvariable setzen (nicht hier eintragen).
+services:
+  fredy:
+    image: ghcr.io/orangecoding/fredy:master
+    container_name: fredy
+    restart: unless-stopped
+    ports:
+      - "9998:9998"
+    volumes:
+      - /srv/docker/fredy/conf:/conf
+      - /srv/docker/fredy/db:/db
+    networks:
+      fredy-net:
+
+  fredy-mcp-bridge:
+    image: ghcr.io/jake-double-one/fredy-mcp-bridge:latest
+    container_name: fredy-mcp-bridge
+    restart: unless-stopped
+    depends_on: [fredy]
+    ports:
+      - "9999:3000"            # Ziel für den Nginx Proxy Manager
+    environment:
+      PUBLIC_URL: https://fredy-mcp.example.de
+      FREDY_URL: http://fredy:9998
+      FREDY_PROXY_SECRET: ${FREDY_PROXY_SECRET:?FREDY_PROXY_SECRET fehlt}
+      TZ: Europe/Berlin
+    volumes:
+      - /srv/docker/fredy/mcp-bridge:/data
+    networks:
+      fredy-net:
+        # Feste Adresse: genau diese IP wird in Fredy als vertrauenswürdiger Proxy eingetragen.
+        ipv4_address: 172.31.250.10
+
+networks:
+  fredy-net:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+          # Automatisch vergebene Adressen nur aus der oberen Hälfte – die feste .10 der Bridge
+          # kann so nie an einen anderen Container gehen.
+          ip_range: 172.31.250.128/25

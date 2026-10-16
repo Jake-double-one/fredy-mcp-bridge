@@ -1,0 +1,30 @@
+# Fredy MCP Bridge – schlanker Node-Container
+FROM node:22-bookworm-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+FROM node:22-bookworm-slim
+ARG VERSION=dev
+ARG REVISION=unknown
+LABEL org.opencontainers.image.title="fredy-mcp-bridge" \
+      org.opencontainers.image.description="MCP-Sidecar für Fredy mit OAuth und Rechten pro Verbindung" \
+      org.opencontainers.image.source="https://github.com/Jake-double-one/fredy-mcp-bridge" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
+ENV NODE_ENV=production \
+    PORT=3000 \
+    DATA_DIR=/data \
+    TZ=Europe/Berlin
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY src ./src
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /data && chown node:node /data
+VOLUME ["/data"]
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["node", "src/index.js"]
