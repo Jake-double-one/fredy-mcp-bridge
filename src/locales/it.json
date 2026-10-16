@@ -44,7 +44,7 @@
   "perm.listings.scam.label": "Segnalare possibili truffe",
   "perm.listings.scam.desc": "Contrassegnare gli annunci come truffa o come non truffaldini – oppure ritirare la valutazione.",
   "perm.listings.details.label": "Caricare i dettagli dell'annuncio",
-  "perm.listings.details.desc": "Come «Aggiorna» nella descrizione di un annuncio: Fredy richiede di nuovo la pagina di dettaglio al portale, ad esempio se il testo è troncato. Limitato a una richiesta alla volta e 20 all'ora, perché il portale non ti blocchi.",
+  "perm.listings.details.desc": "Come «Aggiorna» nella descrizione di un annuncio: Fredy richiede di nuovo la pagina di dettaglio al portale, ad esempio se il testo è troncato. Limitato a una richiesta alla volta e {{perHour}} all'ora, perché il portale non ti blocchi.",
   "perm.jobs.run.label": "Avviare ricerche subito",
   "perm.jobs.run.desc": "Avviare una ricerca al di fuori della pianificazione.",
   "perm.jobs.toggle.label": "Attivare e mettere in pausa ricerche",

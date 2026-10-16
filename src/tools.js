@@ -20,7 +20,7 @@ const idList = {
 // Detailseiten-Abrufe gehen an das Portal. Fredy begrenzt den Knopf nicht, weil ein Mensch ihn
 // einzeln drückt; ein Sprachmodell kann dagegen in einer Schleife abrufen. Deshalb bremst die
 // Bridge: ein Abruf gleichzeitig und höchstens DETAILS_REFRESH_PER_HOUR pro Benutzer und Stunde.
-const DETAILS_PER_HOUR = Math.max(1, Number(process.env.DETAILS_REFRESH_PER_HOUR) || 20);
+export const DETAILS_PER_HOUR = Math.max(1, Number(process.env.DETAILS_REFRESH_PER_HOUR) || 20);
 const detailRuns = new Map(); // username -> { running: boolean, times: number[] }
 
 const DETAIL_STATUS = {

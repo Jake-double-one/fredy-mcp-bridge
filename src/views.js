@@ -4,6 +4,10 @@
  */
 
 import { PERMISSIONS, ROLES } from './permissions.js';
+import { DETAILS_PER_HOUR } from './tools.js';
+
+// Werte, die in Berechtigungstexten als Platzhalter vorkommen.
+const PERM_VARS = { perHour: String(DETAILS_PER_HOUR) };
 
 export function esc(value) {
   return String(value ?? '')
@@ -133,7 +137,7 @@ function permissionItems(i, { ceiling, selected }) {
           const checked = allowed && selected.includes(p.key);
           return `<li class="${allowed ? '' : 'locked'} ${p.danger ? 'danger' : ''}"><label>
 <input type="checkbox" name="perm" value="${esc(p.key)}" ${checked ? 'checked' : ''} ${allowed ? '' : 'disabled'}>
-<span><span class="title">${th(i, `perm.${p.key}.label`)}</span><br><span class="desc">${th(i, `perm.${p.key}.desc`)}${
+<span><span class="title">${th(i, `perm.${p.key}.label`)}</span><br><span class="desc">${th(i, `perm.${p.key}.desc`, PERM_VARS)}${
             allowed ? '' : ` <strong>${th(i, 'perm.lockedByRole')}</strong>`
           }</span></span></label></li>`;
         })

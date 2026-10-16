@@ -25,6 +25,17 @@ services:
       FREDY_URL: http://fredy:9998
       FREDY_PROXY_SECRET: ${FREDY_PROXY_SECRET:?FREDY_PROXY_SECRET fehlt}
       TZ: Europe/Berlin
+      # --- optional (Standardwerte stehen dahinter) ---
+      # Höchstzahl Detailseiten-Abrufe beim Portal pro Benutzer und Stunde (Standard 20)
+      # DETAILS_REFRESH_PER_HOUR: 20
+      # Fredy-Admin, mit dem die MCP-Tokens der Benutzer abgeholt werden
+      # (Standard: der Admin, der sich zuletzt an der Bridge angemeldet hat)
+      # FREDY_ADMIN_USERNAME: dein-admin
+      # Header-Namen – nur ändern, wenn du sie in Fredy anders eingetragen hast
+      # FREDY_PROXY_USER_HEADER: Remote-User
+      # FREDY_PROXY_SECRET_HEADER: X-Fredy-Proxy-Secret
+      # Mehr Log-Ausgaben bei der Fehlersuche: debug | info | warn | error
+      # LOG_LEVEL: info
     volumes:
       - /srv/docker/fredy/mcp-bridge:/data
     networks:

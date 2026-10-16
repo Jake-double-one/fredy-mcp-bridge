@@ -44,7 +44,7 @@
   "perm.listings.scam.label": "Möglichen Betrug markieren",
   "perm.listings.scam.desc": "Inserate als Betrug oder als kein Betrug markieren – oder die Einschätzung zurücknehmen.",
   "perm.listings.details.label": "Inseratsdetails nachladen",
-  "perm.listings.details.desc": "Wie „Aktualisieren“ bei der Beschreibung eines Inserats: Fredy ruft die Detailseite beim Portal erneut ab, etwa wenn der Text abgeschnitten ist. Begrenzt auf einen Abruf gleichzeitig und 20 pro Stunde, damit das Portal dich nicht sperrt.",
+  "perm.listings.details.desc": "Wie „Aktualisieren“ bei der Beschreibung eines Inserats: Fredy ruft die Detailseite beim Portal erneut ab, etwa wenn der Text abgeschnitten ist. Begrenzt auf einen Abruf gleichzeitig und {{perHour}} pro Stunde, damit das Portal dich nicht sperrt.",
   "perm.jobs.run.label": "Jobs sofort starten",
   "perm.jobs.run.desc": "Einen Suchlauf außerhalb des Zeitplans auslösen.",
   "perm.jobs.toggle.label": "Jobs aktivieren & pausieren",

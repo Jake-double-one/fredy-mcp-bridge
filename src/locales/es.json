@@ -44,7 +44,7 @@
   "perm.listings.scam.label": "Marcar posibles estafas",
   "perm.listings.scam.desc": "Marcar anuncios como estafa o como no fraudulentos, o retirar la valoración.",
   "perm.listings.details.label": "Cargar detalles del anuncio",
-  "perm.listings.details.desc": "Como «Actualizar» en la descripción de un anuncio: Fredy vuelve a consultar la página de detalles en el portal, por ejemplo si el texto está cortado. Limitado a una consulta a la vez y 20 por hora, para que el portal no te bloquee.",
+  "perm.listings.details.desc": "Como «Actualizar» en la descripción de un anuncio: Fredy vuelve a consultar la página de detalles en el portal, por ejemplo si el texto está cortado. Limitado a una consulta a la vez y {{perHour}} por hora, para que el portal no te bloquee.",
   "perm.jobs.run.label": "Iniciar búsquedas ahora",
   "perm.jobs.run.desc": "Lanzar una búsqueda fuera del horario programado.",
   "perm.jobs.toggle.label": "Activar y pausar búsquedas",
