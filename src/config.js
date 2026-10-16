@@ -11,7 +11,7 @@ function env(name, fallback = undefined) {
 function required(name) {
   const value = env(name);
   if (value === undefined) {
-    throw new Error(`Umgebungsvariable ${name} fehlt.`);
+    throw new Error(`Environment variable ${name} is missing.`);
   }
   return value;
 }
@@ -24,7 +24,7 @@ export function loadConfig() {
   const publicUrl = stripSlash(required('PUBLIC_URL'));
   const parsed = new URL(publicUrl);
   if (parsed.pathname !== '/' && parsed.pathname !== '') {
-    throw new Error('PUBLIC_URL darf keinen Pfad enthalten, z. B. https://fredy-mcp.example.de');
+    throw new Error('PUBLIC_URL must not contain a path, e.g. https://fredy-mcp.example.com');
   }
 
   return {

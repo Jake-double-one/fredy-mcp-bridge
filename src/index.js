@@ -51,7 +51,7 @@ export function createApp(config, db) {
     try {
       await handleMcp(req, res);
     } catch (error) {
-      log.error('MCP-Anfrage fehlgeschlagen', error);
+      log.error('MCP request failed', error);
       if (!res.headersSent) {
         res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal error' }, id: null });
       }
@@ -77,10 +77,10 @@ async function main() {
   setInterval(() => sweep(db), 60 * 60 * 1000).unref();
 
   app.listen(config.port, () => {
-    log.info(`Fredy MCP Bridge läuft auf Port ${config.port} – öffentlich: ${config.publicUrl}, Fredy: ${config.fredyUrl}`);
+    log.info(`Fredy MCP Bridge listening on port ${config.port} – public: ${config.publicUrl}, Fredy: ${config.fredyUrl}`);
   });
 
-  const selfTest = () => logSelfTest({ fredy, config, db }).catch((error) => log.error('Selbsttest fehlgeschlagen', error));
+  const selfTest = () => logSelfTest({ fredy, config, db }).catch((error) => log.error('Self-test failed', error));
   setTimeout(selfTest, 3000).unref();
   setInterval(selfTest, 60 * 60 * 1000).unref();
 }

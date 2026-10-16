@@ -81,6 +81,8 @@ const MIGRATIONS = [
     allowed TEXT NOT NULL
   );
   `,
+  // Sprache der Web-Sitzung (aus dem Fredy-Profil).
+  `ALTER TABLE web_sessions ADD COLUMN lang TEXT;`,
 ];
 
 export function sha256(value) {

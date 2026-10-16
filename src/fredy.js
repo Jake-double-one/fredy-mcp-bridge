@@ -16,6 +16,7 @@ import { log } from './log.js';
 
 const SESSION_COOKIE = 'fredy-admin-session';
 const IDENTITY_TTL_MS = 60 * 1000;
+const LANGUAGE_TTL_MS = 60 * 1000;
 const TOOLS_TTL_MS = 60 * 1000;
 
 export class FredyError extends Error {
@@ -52,6 +53,7 @@ export class FredyClient {
     // anzulegen (sonst landet jeder Tool-Aufruf als eigener Login in Fredys Log).
     this.cookieJar = new Map();
     this.identityCache = new Map();
+    this.languageCache = new Map();
   }
 
   url(path) {
@@ -72,11 +74,19 @@ export class FredyClient {
     if (response.status !== 200) return { ok: false, reason: 'invalid' };
 
     const cookie = sessionCookieFrom(response);
-    if (!cookie) throw new FredyError('Fredy hat nach dem Login keine Sitzung zurückgegeben.', 502);
+    if (!cookie) throw new FredyError('Fredy did not return a session after sign-in.', 502);
     try {
       const me = await fetch(this.url('/api/login/user'), { headers: { cookie } }).then(readBody);
-      if (!me?.userId) throw new FredyError('Fredy hat den angemeldeten Benutzer nicht zurückgegeben.', 502);
-      return { ok: true, user: { userId: String(me.userId), username: me.username, isAdmin: !!me.isAdmin } };
+      if (!me?.userId) throw new FredyError('Fredy did not return the signed-in user.', 502);
+      // Sprache aus dem Fredy-Profil; ohne Eintrag zeigt Fredy Englisch.
+      const settings = await fetch(this.url('/api/user/settings'), { headers: { cookie } })
+        .then(readBody)
+        .catch(() => null);
+      return {
+        ok: true,
+        user: { userId: String(me.userId), username: me.username, isAdmin: !!me.isAdmin },
+        language: typeof settings?.language === 'string' ? settings.language : null,
+      };
     } finally {
       await fetch(this.url('/api/login/logout'), { method: 'POST', headers: { cookie } }).catch(() => {});
     }
@@ -122,7 +132,7 @@ export class FredyClient {
     if (!fresh && cached && cached.expires > Date.now()) return cached.identity;
 
     const { status, data } = await this.asUser(username, 'GET', '/api/login/user');
-    if (status !== 200) throw new FredyError(`Fredy antwortet mit Status ${status}.`, status);
+    if (status !== 200) throw new FredyError(`Fredy answered with status ${status}.`, status);
     const identity = data?.userId
       ? { userId: String(data.userId), username: data.username, isAdmin: !!data.isAdmin }
       : null;
@@ -134,6 +144,18 @@ export class FredyClient {
 
   forgetIdentity(username) {
     this.identityCache.delete(username);
+    this.languageCache.delete(username);
+  }
+
+  /** Sprache aus dem Fredy-Profil des Benutzers (oder null, wenn keine gewählt ist). */
+  async languageOf(username) {
+    const cached = this.languageCache.get(username);
+    if (cached && cached.expires > Date.now()) return cached.language;
+    const { status, data } = await this.asUser(username, 'GET', '/api/user/settings');
+    if (status !== 200) throw new FredyError(`Fredy answered with status ${status}.`, status);
+    const language = typeof data?.language === 'string' ? data.language : null;
+    this.languageCache.set(username, { language, expires: Date.now() + LANGUAGE_TTL_MS });
+    return language;
   }
 
   /** Welcher Fredy-Admin darf die MCP-Tokens anderer Benutzer abholen? */
@@ -146,8 +168,8 @@ export class FredyClient {
     const admin = this.tokenAdminFor(identity);
     if (!admin) {
       throw new FredyError(
-        'Die Bridge kennt noch keinen Fredy-Admin. Ein Admin muss sich einmal an der Bridge anmelden ' +
-          '(oder FREDY_ADMIN_USERNAME setzen), damit die MCP-Tokens der Benutzer abgeholt werden können.',
+        'The bridge does not know a Fredy admin yet. An admin has to sign in to the bridge once ' +
+          '(or set FREDY_ADMIN_USERNAME) so that the users\' MCP tokens can be fetched.',
         503,
       );
     }
@@ -157,7 +179,7 @@ export class FredyClient {
       `/api/admin/users/${encodeURIComponent(identity.userId)}/mcp-token`,
     );
     if (status !== 200 || !data?.mcpToken) {
-      throw new FredyError(`MCP-Token für ${identity.username} konnte nicht abgeholt werden (Status ${status}).`, status);
+      throw new FredyError(`Could not fetch the MCP token for ${identity.username} (status ${status}).`, status);
     }
     return data.mcpToken;
   }
@@ -222,7 +244,7 @@ export class UpstreamPool {
     } catch (error) {
       if (error instanceof FredyError || !isConnectionError(error)) throw error;
       // Fredy neu gestartet, Sitzung abgelaufen, Token geändert: einmal frisch verbinden.
-      log.warn(`Verbindung zu Fredys MCP für ${identity.username} wird neu aufgebaut: ${error.message}`);
+      log.warn(`Reconnecting to Fredy's MCP for ${identity.username}: ${error.message}`);
       await this.drop(identity);
       return fn(await this.connection(identity));
     }

@@ -1,5 +1,6 @@
 /*
  * Server-seitig gerenderte Seiten. Kein Build-Schritt, kein externes Asset.
+ * Jede Seite bekommt einen Übersetzer `i` ({ lang, locale, t }) aus i18n.js.
  */
 
 import { PERMISSIONS, ROLES } from './permissions.js';
@@ -13,9 +14,14 @@ export function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
-function fmtDate(seconds) {
-  if (!seconds) return 'noch nie';
-  return new Date(seconds * 1000).toLocaleString('de-DE', {
+/** Übersetzung als HTML: Text wird escaped, Platzhalter bekommen bereits fertiges (escaptes) HTML. */
+function th(i, key, html = {}) {
+  return esc(i.t(key)).replace(/\{\{(\w+)\}\}/g, (match, name) => (html[name] !== undefined ? html[name] : match));
+}
+
+function fmtDate(i, seconds) {
+  if (!seconds) return i.t('common.never');
+  return new Date(seconds * 1000).toLocaleString(i.locale, {
     timeZone: process.env.TZ || 'Europe/Berlin',
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -69,7 +75,7 @@ input[type=text],input[type=password]{display:block;width:100%;margin-top:6px;pa
 .section-label{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px}
 code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
 .copy{display:flex;gap:8px}
-.copy input{flex:1;margin:0}
+.copy input{flex:1;margin:0;min-width:0}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 td.c,th.c{text-align:center}
@@ -80,212 +86,216 @@ td input{width:17px;height:17px;accent-color:var(--accent)}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
 `;
 
-export function layout({ title, body, user, csrf, narrow = false }) {
+export function layout(i, { title, body, user, csrf, narrow = false }) {
   const who = user
-    ? `<div class="who"><span>${esc(user.username)}</span>${user.isAdmin ? '<span class="chip admin">Admin</span>' : ''}
+    ? `<div class="who"><span>${esc(user.username)}</span>${user.isAdmin ? `<span class="chip admin">${th(i, 'layout.admin')}</span>` : ''}
        <form method="post" action="/logout" style="margin:0"><input type="hidden" name="_csrf" value="${esc(csrf)}">
-       <button class="btn btn-secondary btn-sm" type="submit">Abmelden</button></form></div>`
+       <button class="btn btn-secondary btn-sm" type="submit">${th(i, 'layout.signOut')}</button></form></div>`
     : '';
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<!doctype html><html lang="${esc(i.lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><title>${esc(title)} · Fredy MCP Bridge</title><style>${CSS}</style></head>
 <body><header><a class="brand" href="/"><span class="heart">&#10084;</span> Fredy MCP Bridge</a>${who}</header>
 <main class="${narrow ? 'narrow' : ''}">${body}</main>
-<footer>Anmeldung mit deinem Fredy-Konto · Rechte und Sichtbarkeit bestimmt Fredy</footer></body></html>`;
+<footer>${th(i, 'layout.footer')}</footer></body></html>`;
 }
 
-export function loginPage({ error, next, username }) {
-  return layout({
-    title: 'Anmelden',
+export function loginPage(i, { error, next, username }) {
+  return layout(i, {
+    title: i.t('login.title'),
     narrow: true,
-    body: `<div class="card"><h1>Anmelden</h1><p class="lead">Mit deinem Fredy-Benutzer und -Passwort.</p>
+    body: `<div class="card"><h1>${th(i, 'login.title')}</h1><p class="lead">${th(i, 'login.lead')}</p>
 ${error ? `<div class="alert bad">${esc(error)}</div>` : ''}
 <form method="post" action="/login">
 <input type="hidden" name="next" value="${esc(next || '/')}">
-<label class="field">Benutzername<input type="text" name="username" value="${esc(username || '')}" autocomplete="username" autofocus required></label>
-<label class="field">Passwort<input type="password" name="password" autocomplete="current-password" required></label>
-<button class="btn btn-primary btn-block" type="submit">Anmelden</button>
+<label class="field">${th(i, 'login.username')}<input type="text" name="username" value="${esc(username || '')}" autocomplete="username" autofocus required></label>
+<label class="field">${th(i, 'login.password')}<input type="password" name="password" autocomplete="current-password" required></label>
+<button class="btn btn-primary btn-block" type="submit">${th(i, 'login.button')}</button>
 </form></div>`,
   });
 }
 
-export function messagePage({ title, message, user, csrf, kind = 'bad' }) {
-  return layout({
+export function messagePage(i, { title, message, user, csrf, kind = 'bad' }) {
+  return layout(i, {
     title,
     user,
     csrf,
     narrow: true,
-    body: `<div class="card"><h1>${esc(title)}</h1><div class="alert ${kind}">${message}</div><a class="btn btn-secondary" href="/">Zur Übersicht</a></div>`,
+    body: `<div class="card"><h1>${esc(title)}</h1><div class="alert ${kind}">${esc(message)}</div><a class="btn btn-secondary" href="/">${th(i, 'common.toOverview')}</a></div>`,
   });
 }
 
-function permissionItems({ ceiling, selected, namePrefix = 'perm' }) {
-  const groups = [
-    ['fredy', 'Was Fredy selbst anbietet'],
-    ['bridge', 'Zusätze der Bridge (Opt-in)'],
-  ];
-  return groups
-    .map(([source, heading]) => {
+function permissionItems(i, { ceiling, selected }) {
+  return ['fredy', 'bridge']
+    .map((source) => {
       const items = PERMISSIONS.filter((p) => p.source === source)
         .map((p) => {
           const allowed = ceiling.includes(p.key);
           const checked = allowed && selected.includes(p.key);
           return `<li class="${allowed ? '' : 'locked'} ${p.danger ? 'danger' : ''}"><label>
-<input type="checkbox" name="${namePrefix}" value="${esc(p.key)}" ${checked ? 'checked' : ''} ${allowed ? '' : 'disabled'}>
-<span><span class="title">${esc(p.label)}</span><br><span class="desc">${esc(p.description)}${
-            allowed ? '' : ' <strong>Für deine Rolle von einem Admin gesperrt.</strong>'
+<input type="checkbox" name="perm" value="${esc(p.key)}" ${checked ? 'checked' : ''} ${allowed ? '' : 'disabled'}>
+<span><span class="title">${th(i, `perm.${p.key}.label`)}</span><br><span class="desc">${th(i, `perm.${p.key}.desc`)}${
+            allowed ? '' : ` <strong>${th(i, 'perm.lockedByRole')}</strong>`
           }</span></span></label></li>`;
         })
         .join('');
-      return `<div class="section-label">${heading}</div><ul class="perms">${items}</ul>`;
+      return `<div class="section-label">${th(i, `perm.group.${source}`)}</div><ul class="perms">${items}</ul>`;
     })
     .join('');
 }
 
-export function consentPage({ user, csrf, pending, ceiling, selected, existing }) {
-  const clientName = pending.client.client_name || 'Unbekannter Client';
+export function consentPage(i, { user, csrf, pending, ceiling, selected, existing }) {
+  const clientName = pending.client.client_name || i.t('consent.unknownClient');
   const host = new URL(pending.redirectUri).host;
-  return layout({
-    title: 'Verbindung freigeben',
+  return layout(i, {
+    title: i.t('consent.title'),
     user,
     csrf,
     narrow: true,
-    body: `<div class="card"><h1>Verbindung freigeben</h1>
-<p class="lead"><strong>${esc(clientName)}</strong> möchte sich mit deinem Fredy-Konto <strong>${esc(user.username)}</strong> verbinden.<br>
-<span class="small">Weiterleitung an <span class="mono">${esc(host)}</span></span></p>
-${existing ? '<div class="alert warn">Dieser Client ist bereits verbunden. Die Auswahl unten ersetzt die bisherigen Rechte.</div>' : ''}
+    body: `<div class="card"><h1>${th(i, 'consent.title')}</h1>
+<p class="lead">${th(i, 'consent.lead', { client: `<strong>${esc(clientName)}</strong>`, user: `<strong>${esc(user.username)}</strong>` })}<br>
+<span class="small">${th(i, 'consent.redirect', { host: `<span class="mono">${esc(host)}</span>` })}</span></p>
+${existing ? `<div class="alert warn">${th(i, 'consent.existing')}</div>` : ''}
 <form method="post" action="/consent">
 <input type="hidden" name="_csrf" value="${esc(csrf)}"><input type="hidden" name="req" value="${esc(pending.id)}">
-${permissionItems({ ceiling, selected })}
-<p class="small muted">Du kannst die Rechte später jederzeit ändern, einzelne Fredy-Tools sperren oder die Verbindung trennen.</p>
-<button class="btn btn-primary btn-block" type="submit" name="action" value="allow">Verbinden</button>
-<button class="btn btn-secondary btn-block" style="margin-top:8px" type="submit" name="action" value="deny">Abbrechen</button>
+${permissionItems(i, { ceiling, selected })}
+<p class="small muted">${th(i, 'consent.footnote')}</p>
+<button class="btn btn-primary btn-block" type="submit" name="action" value="allow">${th(i, 'consent.connect')}</button>
+<button class="btn btn-secondary btn-block" style="margin-top:8px" type="submit" name="action" value="deny">${th(i, 'consent.cancel')}</button>
 </form></div>`,
   });
 }
 
-function permissionChips(grant, ceiling) {
+function permissionChips(i, grant, ceiling) {
   const granted = new Set(JSON.parse(grant.permissions));
   const chips = PERMISSIONS.filter((p) => granted.has(p.key)).map((p) => {
     const active = ceiling.includes(p.key);
-    return `<span class="chip ${active ? '' : 'off'}" title="${active ? '' : 'Durch die Rollen-Obergrenze derzeit gesperrt'}">${esc(p.label)}</span>`;
+    return `<span class="chip ${active ? '' : 'off'}" title="${active ? '' : th(i, 'conn.lockedByCeiling')}">${th(i, `perm.${p.key}.label`)}</span>`;
   });
   const blocked = JSON.parse(grant.blocked_tools || '[]');
-  if (blocked.length) chips.push(`<span class="chip off">${blocked.length} Fredy-Tool(s) gesperrt</span>`);
-  return chips.join('') || '<span class="muted small">keine Rechte</span>';
+  if (blocked.length) chips.push(`<span class="chip off">${th(i, 'conn.blockedTools', { count: String(blocked.length) })}</span>`);
+  return chips.join('') || `<span class="muted small">${th(i, 'conn.noPermissions')}</span>`;
 }
 
-function connectionBlock(grant, ceiling, csrf, showUser) {
+function connectionBlock(i, grant, ceiling, csrf, showUser) {
+  const meta = [
+    grant.redirect_host ? esc(grant.redirect_host) : null,
+    th(i, 'conn.connectedAt', { date: esc(fmtDate(i, grant.created_at)) }),
+    th(i, 'conn.lastUsed', { date: esc(fmtDate(i, grant.last_used_at)) }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  // confirm() bekommt den Text als JSON-String; im Attribut zusätzlich HTML-escaped.
+  const confirmText = esc(JSON.stringify(i.t('conn.revokeConfirm')));
   return `<div class="conn"><div class="spread"><div>
 <strong>${esc(grant.client_name)}</strong>${showUser ? ` <span class="chip">${esc(grant.username)}</span>` : ''}<br>
-<span class="small muted">${grant.redirect_host ? `${esc(grant.redirect_host)} · ` : ''}verbunden ${esc(fmtDate(grant.created_at))} · zuletzt genutzt ${esc(
-    fmtDate(grant.last_used_at),
-  )}</span></div>
-<div class="row"><a class="btn btn-secondary btn-sm" href="/connections/${esc(grant.id)}">Rechte bearbeiten</a>
-<form method="post" action="/connections/${esc(grant.id)}/revoke" style="margin:0" onsubmit="return confirm('Verbindung wirklich trennen? Der Client verliert sofort den Zugriff.')">
-<input type="hidden" name="_csrf" value="${esc(csrf)}"><button class="btn btn-danger btn-sm" type="submit">Trennen</button></form></div></div>
-<div style="margin-top:8px">${permissionChips(grant, ceiling)}</div></div>`;
+<span class="small muted">${meta}</span></div>
+<div class="row"><a class="btn btn-secondary btn-sm" href="/connections/${esc(grant.id)}">${th(i, 'conn.edit')}</a>
+<form method="post" action="/connections/${esc(grant.id)}/revoke" style="margin:0" onsubmit="return confirm(${confirmText})">
+<input type="hidden" name="_csrf" value="${esc(csrf)}"><button class="btn btn-danger btn-sm" type="submit">${th(i, 'conn.revoke')}</button></form></div></div>
+<div style="margin-top:8px">${permissionChips(i, grant, ceiling)}</div></div>`;
 }
 
-function statusList(checks) {
+function statusList(i, checks) {
   const icon = { ok: '&#10003;', warn: '!', bad: '&#10007;' };
   return `<ul class="status small" style="padding-left:0;list-style:none;margin:0">${checks
-    .map((c) => `<li><span class="${c.state}">${icon[c.state]}</span> <strong>${esc(c.name)}</strong> – ${esc(c.message)}</li>`)
+    .map((c) => `<li><span class="${c.state}">${icon[c.state]}</span> <strong>${th(i, c.name)}</strong> – ${esc(c.raw ?? i.t(c.message, c.vars))}</li>`)
     .join('')}</ul>`;
 }
 
-export function dashboardPage({ user, csrf, mcpUrl, myGrants, otherGrants, ceilings, proxyOk, checks, flash }) {
+export function dashboardPage(i, { user, csrf, mcpUrl, myGrants, otherGrants, ceilings, proxyOk, checks, flash }) {
   const mine = myGrants.length
-    ? myGrants.map((g) => connectionBlock(g, ceilings[user.isAdmin ? 'admin' : 'user'], csrf, false)).join('')
-    : '<p class="muted">Noch keine Verbindung. Füge die URL oben in deinem MCP-Client hinzu.</p>';
+    ? myGrants.map((g) => connectionBlock(i, g, ceilings[user.isAdmin ? 'admin' : 'user'], csrf, false)).join('')
+    : `<p class="muted">${th(i, 'dash.mineEmpty')}</p>`;
 
   const adminCards = user.isAdmin
-    ? `<div class="card"><div class="spread"><h2>Verbindungen anderer Benutzer</h2></div>${
+    ? `<div class="card"><h2>${th(i, 'dash.others')}</h2>${
         otherGrants.length
-          ? otherGrants.map((g) => connectionBlock(g, ceilings[g.isAdmin ? 'admin' : 'user'], csrf, true)).join('')
-          : '<p class="muted">Keine.</p>'
+          ? otherGrants.map((g) => connectionBlock(i, g, ceilings[g.isAdmin ? 'admin' : 'user'], csrf, true)).join('')
+          : `<p class="muted">${th(i, 'dash.othersEmpty')}</p>`
       }</div>
-<div class="card"><div class="spread"><h2>Rollen-Obergrenzen</h2><a class="btn btn-secondary btn-sm" href="/admin/roles">Bearbeiten</a></div>
-<p class="small muted">Legt fest, welche Rechte Admins und Benutzer für ihre Verbindungen überhaupt freigeben dürfen.</p></div>
-<div class="card"><h2>Zustand</h2>${statusList(checks)}</div>`
+<div class="card"><div class="spread"><h2>${th(i, 'dash.roles')}</h2><a class="btn btn-secondary btn-sm" href="/admin/roles">${th(i, 'dash.rolesEdit')}</a></div>
+<p class="small muted">${th(i, 'dash.rolesDesc')}</p></div>
+<div class="card"><h2>${th(i, 'dash.status')}</h2>${statusList(i, checks)}</div>`
     : '';
 
-  return layout({
-    title: 'Übersicht',
+  const copied = esc(JSON.stringify(i.t('dash.copied')));
+  return layout(i, {
+    title: i.t('dash.title'),
     user,
     csrf,
-    body: `${flash ? `<div class="alert ok">${esc(flash)}</div>` : ''}
+    body: `${flash ? `<div class="alert ok">${th(i, flash)}</div>` : ''}
 ${
   proxyOk === false
-    ? `<div class="alert bad">Fredy bestätigt deinen Benutzer nicht über die Reverse-Proxy-Anmeldung. Tools funktionieren erst, wenn sie in Fredy eingerichtet ist${
-        user.isAdmin ? ' – siehe „Zustand“ unten.' : '. Bitte wende dich an einen Admin.'
-      }</div>`
+    ? `<div class="alert bad">${th(i, 'dash.proxyWarning')} ${th(i, user.isAdmin ? 'dash.proxyWarningAdmin' : 'dash.proxyWarningUser')}</div>`
     : ''
 }
-<div class="card"><h1>Connector-URL</h1>
-<p class="lead">Diese Adresse in deinem MCP-Client eintragen – in Claude unter <em>Einstellungen → Connectors → Benutzerdefinierten Connector hinzufügen</em>. Danach landest du hier zur Freigabe.</p>
+<div class="card"><h1>${th(i, 'dash.connectorTitle')}</h1>
+<p class="lead">${th(i, 'dash.connectorLead', { path: `<em>${th(i, 'dash.connectorPath')}</em>` })}</p>
 <div class="copy"><input type="text" id="mcpurl" value="${esc(mcpUrl)}" readonly>
-<button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').value);this.textContent='Kopiert'">Kopieren</button></div></div>
-<div class="card"><h2>Meine Verbindungen</h2>${mine}</div>
+<button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').value);this.textContent=${copied}">${th(i, 'dash.copy')}</button></div></div>
+<div class="card"><h2>${th(i, 'dash.mine')}</h2>${mine}</div>
 ${adminCards}`,
   });
 }
 
-export function connectionPage({ user, csrf, grant, ceiling, upstreamTools, upstreamError, permissionFor }) {
+export function connectionPage(i, { user, csrf, grant, ceiling, upstreamTools, upstreamError, permissionFor }) {
   const selected = JSON.parse(grant.permissions);
   const blocked = new Set(JSON.parse(grant.blocked_tools || '[]'));
   let toolsHtml;
   if (upstreamError) {
-    toolsHtml = `<div class="alert warn">Fredys Tool-Liste ist gerade nicht abrufbar: ${esc(upstreamError)}</div>`;
+    toolsHtml = `<div class="alert warn">${th(i, 'connPage.toolsUnavailable', { error: esc(upstreamError) })}</div>`;
   } else {
     const rows = (perm) =>
       upstreamTools
-        .filter((t) => permissionFor(t) === perm)
+        .filter((tool) => permissionFor(tool) === perm)
         .map(
-          (t) => `<li><label><input type="checkbox" name="tool" value="${esc(t.name)}" ${blocked.has(t.name) ? '' : 'checked'}>
-<span><span class="title mono">${esc(t.name)}</span><br><span class="desc">${esc(t.annotations?.title || t.title || '')}${
-            t.annotations?.destructiveHint ? ' · überschreibt Daten' : ''
+          (tool) => `<li><label><input type="checkbox" name="tool" value="${esc(tool.name)}" ${blocked.has(tool.name) ? '' : 'checked'}>
+<span><span class="title mono">${esc(tool.name)}</span><br><span class="desc">${esc(tool.annotations?.title || tool.title || '')}${
+            tool.annotations?.destructiveHint ? ` · ${th(i, 'connPage.overwrites')}` : ''
           }</span></span></label></li>`,
         )
-        .join('') || '<li class="muted small">keine</li>';
-    toolsHtml = `<p class="small muted">Gilt zusätzlich zu den Rechten oben. Neue Tools, die Fredy künftig mitbringt, sind automatisch erlaubt, solange die passende Fredy-Berechtigung an ist.</p>
-<div class="section-label">Lesen</div><ul class="perms">${rows('fredy.read')}</ul>
-<div class="section-label">Schreiben</div><ul class="perms">${rows('fredy.write')}</ul>`;
+        .join('') || `<li class="muted small">${th(i, 'connPage.none')}</li>`;
+    toolsHtml = `<p class="small muted">${th(i, 'connPage.toolsNote')}</p>
+<div class="section-label">${th(i, 'connPage.read')}</div><ul class="perms">${rows('fredy.read')}</ul>
+<div class="section-label">${th(i, 'connPage.write')}</div><ul class="perms">${rows('fredy.write')}</ul>`;
   }
 
-  return layout({
-    title: 'Rechte bearbeiten',
+  return layout(i, {
+    title: i.t('connPage.title'),
     user,
     csrf,
     body: `<div class="card"><h1>${esc(grant.client_name)}</h1>
-<p class="lead">Fredy-Konto <strong>${esc(grant.username)}</strong>${grant.redirect_host ? ` · ${esc(grant.redirect_host)}` : ''}. Änderungen gelten ab dem nächsten Tool-Aufruf.</p>
+<p class="lead">${th(i, 'connPage.lead', { user: `<strong>${esc(grant.username)}</strong>` })}${grant.redirect_host ? ` · ${esc(grant.redirect_host)}` : ''}</p>
 <form method="post" action="/connections/${esc(grant.id)}">
 <input type="hidden" name="_csrf" value="${esc(csrf)}">
-${permissionItems({ ceiling, selected })}
-<h2 style="margin-top:24px">Einzelne Fredy-Tools</h2>
+${permissionItems(i, { ceiling, selected })}
+<h2 style="margin-top:24px">${th(i, 'connPage.toolsHeading')}</h2>
 ${toolsHtml}
 <input type="hidden" name="toolsShown" value="${upstreamError ? '0' : '1'}">
-<div class="row"><button class="btn btn-primary" type="submit">Speichern</button><a class="btn btn-secondary" href="/">Zurück</a></div>
+<div class="row"><button class="btn btn-primary" type="submit">${th(i, 'common.save')}</button><a class="btn btn-secondary" href="/">${th(i, 'common.back')}</a></div>
 </form></div>`,
   });
 }
 
-export function rolesPage({ user, csrf, policies }) {
+export function rolesPage(i, { user, csrf, policies }) {
+  const roles = Object.keys(ROLES);
   const rows = PERMISSIONS.map(
-    (p) => `<tr><td><strong>${esc(p.label)}</strong><br><span class="small muted">${esc(p.source === 'fredy' ? 'Fredy' : 'Bridge-Zusatz')}</span></td>
-${Object.keys(ROLES)
-  .map((role) => `<td class="c"><input type="checkbox" name="${role}" value="${esc(p.key)}" ${policies[role].includes(p.key) ? 'checked' : ''}></td>`)
-  .join('')}</tr>`,
+    (p) => `<tr><td><strong>${th(i, `perm.${p.key}.label`)}</strong><br><span class="small muted">${th(
+      i,
+      p.source === 'fredy' ? 'roles.sourceFredy' : 'roles.sourceBridge',
+    )}</span></td>
+${roles.map((role) => `<td class="c"><input type="checkbox" name="${role}" value="${esc(p.key)}" ${policies[role].includes(p.key) ? 'checked' : ''}></td>`).join('')}</tr>`,
   ).join('');
-  return layout({
-    title: 'Rollen-Obergrenzen',
+  return layout(i, {
+    title: i.t('roles.title'),
     user,
     csrf,
-    body: `<div class="card"><h1>Rollen-Obergrenzen</h1>
-<p class="lead">Was Mitglieder einer Fredy-Rolle für ihre Verbindungen höchstens freigeben dürfen. Wird eine Berechtigung hier entzogen, ist sie sofort in allen Verbindungen dieser Rolle aus – die Auswahl der Benutzer bleibt aber gespeichert und greift wieder, wenn du sie zurückgibst.</p>
+    body: `<div class="card"><h1>${th(i, 'roles.title')}</h1>
+<p class="lead">${th(i, 'roles.lead')}</p>
 <form method="post" action="/admin/roles"><input type="hidden" name="_csrf" value="${esc(csrf)}">
-<table><thead><tr><th>Berechtigung</th>${Object.values(ROLES).map((r) => `<th class="c">${esc(r)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
-<p class="small muted">Unabhängig davon sieht und ändert jeder Benutzer nur, was Fredy ihm erlaubt (eigene und mit ihm geteilte Jobs).</p>
-<div class="row"><button class="btn btn-primary" type="submit">Speichern</button><a class="btn btn-secondary" href="/">Zurück</a></div>
+<table><thead><tr><th>${th(i, 'roles.permission')}</th>${roles.map((r) => `<th class="c">${th(i, `roles.${r}`)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+<p class="small muted">${th(i, 'roles.note')}</p>
+<div class="row"><button class="btn btn-primary" type="submit">${th(i, 'common.save')}</button><a class="btn btn-secondary" href="/">${th(i, 'common.back')}</a></div>
 </form></div>`,
   });
 }

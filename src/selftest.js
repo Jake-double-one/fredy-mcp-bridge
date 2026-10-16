@@ -4,74 +4,70 @@
  * Fredys REST-API ist intern und unversioniert. Statt still kaputtzugehen, prüft die Bridge, ob
  * jeder genutzte Endpunkt noch existiert: Ohne Anmeldung antwortet ein vorhandener, geschützter
  * Endpunkt mit 401, ein verschwundener mit 404.
+ *
+ * Ergebnisse tragen Übersetzungsschlüssel; die Oberfläche zeigt sie in der Sprache des Betrachters,
+ * das Log auf Englisch.
  */
 
 import { getSetting } from './db.js';
+import { translator } from './i18n.js';
 import { log } from './log.js';
 
 const ENDPOINTS = [
-  ['DELETE', '/api/listings', 'Inserate löschen/ausblenden'],
-  ['POST', '/api/listings/restore', 'Inserate wiederherstellen'],
-  ['GET', '/api/listings/table', 'Ausgeblendete Inserate auflisten'],
-  ['POST', '/api/listings/selftest/status', 'Bewerbungsstatus'],
-  ['POST', '/api/listings/selftest/scam', 'Betrugsmarkierung'],
-  ['POST', '/api/jobs/selftest/run', 'Job starten'],
-  ['PUT', '/api/jobs/selftest/status', 'Job aktivieren/pausieren'],
-  ['GET', '/api/admin/users/selftest/mcp-token', 'MCP-Token abholen'],
-  ['POST', '/api/mcp', 'Fredys MCP-Server'],
+  ['DELETE', '/api/listings'],
+  ['POST', '/api/listings/restore'],
+  ['GET', '/api/listings/table'],
+  ['POST', '/api/listings/selftest/status'],
+  ['POST', '/api/listings/selftest/scam'],
+  ['POST', '/api/jobs/selftest/run'],
+  ['PUT', '/api/jobs/selftest/status'],
+  ['GET', '/api/admin/users/selftest/mcp-token'],
+  ['GET', '/api/user/settings'],
+  ['POST', '/api/mcp'],
 ];
 
 export async function runSelfTest({ fredy, config, db }) {
   const checks = [];
-  const add = (state, name, message) => checks.push({ state, name, message });
+  // name/message sind Übersetzungsschlüssel; raw ist ein unübersetzbarer Text (z. B. Fehlermeldung).
+  const add = (state, name, message, vars = {}) => checks.push({ state, name, message, vars });
+  const addRaw = (state, name, raw) => checks.push({ state, name, raw });
 
   try {
     const response = await fetch(`${config.fredyUrl}/api/login/user`);
-    if (response.ok) add('ok', 'Fredy erreichbar', config.fredyUrl);
-    else add('bad', 'Fredy erreichbar', `${config.fredyUrl} antwortet mit ${response.status}`);
+    if (response.ok) addRaw('ok', 'check.fredy', config.fredyUrl);
+    else add('bad', 'check.fredy', 'check.fredyStatus', { url: config.fredyUrl, status: response.status });
   } catch (error) {
-    add('bad', 'Fredy erreichbar', `${config.fredyUrl}: ${error.cause?.code || error.message}`);
+    addRaw('bad', 'check.fredy', `${config.fredyUrl}: ${error.cause?.code || error.message}`);
     return checks;
   }
 
   const missing = [];
-  for (const [method, path, label] of ENDPOINTS) {
+  for (const [method, path] of ENDPOINTS) {
     try {
       const response = await fetch(`${config.fredyUrl}${path}`, {
         method,
         headers: { 'content-type': 'application/json' },
         body: method === 'GET' ? undefined : '{}',
       });
-      if (response.status === 404) missing.push(`${label} (${method} ${path})`);
+      if (response.status === 404) missing.push(`${method} ${path}`);
     } catch {
-      missing.push(`${label} (${method} ${path})`);
+      missing.push(`${method} ${path}`);
     }
   }
-  if (missing.length) {
-    add('bad', 'Fredy-Endpunkte', `Nicht mehr vorhanden – Fredy hat seine API geändert: ${missing.join(', ')}`);
-  } else {
-    add('ok', 'Fredy-Endpunkte', `Alle ${ENDPOINTS.length} genutzten Endpunkte vorhanden.`);
-  }
+  if (missing.length) add('bad', 'check.endpoints', 'check.endpointsMissing', { list: missing.join(', ') });
+  else add('ok', 'check.endpoints', 'check.endpointsOk', { count: ENDPOINTS.length });
 
   const admin = config.adminUsername || getSetting(db, 'token_admin_username');
   if (!admin) {
-    add('warn', 'Reverse-Proxy-Anmeldung', 'Noch nicht prüfbar: Ein Fredy-Admin muss sich einmal an der Bridge anmelden.');
+    add('warn', 'check.proxy', 'check.proxyPending');
   } else {
     try {
       const identity = await fredy.whoIs(admin, { fresh: true });
-      if (identity?.isAdmin) {
-        add('ok', 'Reverse-Proxy-Anmeldung', `Fredy bestätigt „${admin}“ (Admin).`);
-      } else if (identity) {
-        add('warn', 'Reverse-Proxy-Anmeldung', `„${admin}“ ist in Fredy kein Admin mehr – MCP-Tokens anderer Benutzer sind nicht abrufbar.`);
-      } else {
-        add(
-          'bad',
-          'Reverse-Proxy-Anmeldung',
-          'Fredy akzeptiert die Bridge nicht. In Fredy unter System → „Anmeldung durch den Reverse-Proxy“: Haken setzen, IP der Bridge, Header-Namen und Geheimnis prüfen.',
-        );
-      }
+      if (identity?.isAdmin) add('ok', 'check.proxy', 'check.proxyOk', { user: admin });
+      else if (identity) add('warn', 'check.proxy', 'check.proxyNotAdmin', { user: admin });
+      else add('bad', 'check.proxy', 'check.proxyRejected');
     } catch (error) {
-      add('bad', 'Reverse-Proxy-Anmeldung', error.message);
+      addRaw('bad', 'check.proxy', error.message);
     }
   }
   return checks;
@@ -79,8 +75,9 @@ export async function runSelfTest({ fredy, config, db }) {
 
 export async function logSelfTest(deps) {
   const checks = await runSelfTest(deps);
+  const { t } = translator('en');
   for (const check of checks) {
-    const line = `Selbsttest: ${check.name} – ${check.message}`;
+    const line = `Self-test: ${t(check.name)} – ${check.raw ?? t(check.message, check.vars)}`;
     if (check.state === 'ok') log.info(line);
     else if (check.state === 'warn') log.warn(line);
     else log.error(`!!! ${line}`);

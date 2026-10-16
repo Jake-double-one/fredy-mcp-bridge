@@ -26,6 +26,9 @@ MCP-Client (Claude.ai, ChatGPT, …)
   Einzelne Fredy-Tools lassen sich pro Verbindung sperren. Verbindungen jederzeit trennbar.
 - **Rollen-Obergrenzen:** Admins legen fest, was Fredy-Admins bzw. normale Benutzer überhaupt
   freigeben dürfen.
+- **Sprachen wie Fredy:** Englisch (Standard), Deutsch, Spanisch, Französisch, Italienisch. Nach dem
+  Login folgt die Oberfläche der Sprache im Fredy-Profil; Änderungen dort greifen innerhalb einer
+  Minute. Ohne gewählte Sprache – oder bei einer Sprache, die die Bridge nicht kennt – Englisch.
 - **Fredy entscheidet über Sichtbarkeit:** Jeder Aufruf läuft über Fredys Reverse-Proxy-Anmeldung als
   genau der verbundene Benutzer. Eigene/geteilte Jobs, Admin-Rechte und Demo-Modus prüft Fredy selbst.
 
@@ -99,3 +102,6 @@ npm test
 PUBLIC_URL=http://localhost:3000 FREDY_URL=http://127.0.0.1:9998 FREDY_PROXY_SECRET=… DATA_DIR=./data npm start
 npm run licenses   # LICENSE.txt nach Paket-Updates neu erzeugen
 ```
+
+Übersetzungen liegen in `src/locales/<sprache>.json`; `en.json` ist die Referenz. Der Test
+`test/i18n.test.js` prüft, dass jede Sprache alle Schlüssel und dieselben Platzhalter hat.

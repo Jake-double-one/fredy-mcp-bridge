@@ -16,10 +16,14 @@ import {
   setRolePolicy,
 } from './permissions.js';
 import { consentPage, connectionPage, dashboardPage, loginPage, messagePage, rolesPage } from './views.js';
+import { normalizeLanguage, translator, DEFAULT_LANGUAGE } from './i18n.js';
 import { runSelfTest } from './selftest.js';
 import { log } from './log.js';
 
 const COOKIE = 'fmb_session';
+// Merkt sich die zuletzt genutzte Sprache, damit schon die Login-Seite passt.
+const LANG_COOKIE = 'fmb_lang';
+const FLASH = { saved: 'flash.saved', revoked: 'flash.revoked', rolesSaved: 'flash.rolesSaved' };
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS_PER_IP = 10;
 const MAX_FAILS_PER_USER = 5;
@@ -87,28 +91,37 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
         req.user = { userId: row.user_id, username: row.username, isAdmin: !!row.is_admin };
         req.csrf = row.csrf;
         req.sessionHash = row.id_hash;
-        // Rolle aktuell halten: Wird jemand in Fredy zum Admin gemacht oder herabgestuft, gilt das
-        // hier ab der nächsten Minute – sofern Fredy den Benutzer über die Proxy-Anmeldung bestätigt.
+        let lang = row.lang;
+        // Rolle und Sprache aktuell halten: Änderungen in Fredy gelten hier ab der nächsten Minute –
+        // sofern Fredy den Benutzer über die Proxy-Anmeldung bestätigt.
         try {
           const identity = await fredy.whoIs(row.username);
-          if (identity?.userId === row.user_id && identity.isAdmin !== req.user.isAdmin) {
-            req.user.isAdmin = identity.isAdmin;
-            db.prepare('UPDATE web_sessions SET is_admin = ? WHERE id_hash = ?').run(identity.isAdmin ? 1 : 0, row.id_hash);
+          if (identity?.userId === row.user_id) {
+            const fresh = (await fredy.languageOf(row.username)) || DEFAULT_LANGUAGE;
+            if (identity.isAdmin !== req.user.isAdmin || fresh !== lang) {
+              req.user.isAdmin = identity.isAdmin;
+              lang = fresh;
+              db.prepare('UPDATE web_sessions SET is_admin = ?, lang = ? WHERE id_hash = ?').run(identity.isAdmin ? 1 : 0, lang, row.id_hash);
+            }
           }
         } catch {
-          /* Fredy kurz nicht erreichbar: bisherige Rolle behalten */
+          /* Fredy kurz nicht erreichbar: bisherige Rolle und Sprache behalten */
         }
+        req.i = translator(lang);
       }
     }
+    req.i ??= translator(normalizeLanguage(parseCookies(req.headers.cookie)[LANG_COOKIE]) || DEFAULT_LANGUAGE);
     next();
   });
 
-  const setCookie = (res, value, maxAge) => {
+  const setCookie = (res, value, maxAge, name = COOKIE) => {
     res.append(
       'Set-Cookie',
-      `${COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secureCookie ? '; Secure' : ''}`,
+      `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secureCookie ? '; Secure' : ''}`,
     );
   };
+  const message = (req, res, status, titleKey, messageKey) =>
+    res.status(status).send(messagePage(req.i, { title: req.i.t(titleKey), message: req.i.t(messageKey), user: req.user, csrf: req.csrf }));
 
   const requireLogin = (req, res, next) => {
     if (!req.user) return res.redirect(303, `/login?next=${encodeURIComponent(req.originalUrl)}`);
@@ -116,7 +129,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
   };
   const requireAdmin = (req, res, next) => {
     if (!req.user?.isAdmin) {
-      return res.status(403).send(messagePage({ title: 'Kein Zugriff', message: 'Nur für Fredy-Admins.', user: req.user, csrf: req.csrf }));
+      return message(req, res, 403, 'error.forbiddenTitle', 'error.adminOnly');
     }
     next();
   };
@@ -124,7 +137,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
     const sent = String(req.body?._csrf || '');
     const ok = req.csrf && sent.length === req.csrf.length && crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(req.csrf));
     if (!ok) {
-      return res.status(403).send(messagePage({ title: 'Abgelaufen', message: 'Formular abgelaufen. Bitte neu laden.', user: req.user, csrf: req.csrf }));
+      return message(req, res, 403, 'error.csrfTitle', 'error.csrf');
     }
     next();
   };
@@ -132,7 +145,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
   // ---- Login -------------------------------------------------------------------------------
   router.get('/login', (req, res) => {
     if (req.user) return res.redirect(303, safeNext(req.query.next));
-    res.send(loginPage({ next: safeNext(req.query.next) }));
+    res.send(loginPage(req.i, { next: safeNext(req.query.next) }));
   });
 
   router.post('/login', async (req, res) => {
@@ -141,26 +154,26 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
     const next = safeNext(req.body.next);
     const ipKey = `ip:${req.ip}`;
     const userKey = `user:${username.toLowerCase()}`;
-    const show = (status, error) => res.status(status).send(loginPage({ error, next, username }));
+    const show = (status, key) => res.status(status).send(loginPage(req.i, { error: req.i.t(key), next, username }));
 
-    if (!username || !password) return show(400, 'Bitte Benutzername und Passwort eingeben.');
+    if (!username || !password) return show(400, 'login.errorMissing');
     if (limiter.count(ipKey) >= MAX_FAILS_PER_IP || limiter.count(userKey) >= MAX_FAILS_PER_USER) {
-      return show(429, 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.');
+      return show(429, 'login.errorTooMany');
     }
 
     let result;
     try {
       result = await fredy.checkPassword(username, password);
     } catch (error) {
-      log.error(`Login-Prüfung bei Fredy fehlgeschlagen: ${error.message}`);
-      return show(502, 'Fredy ist gerade nicht erreichbar.');
+      log.error(`Password check against Fredy failed: ${error.message}`);
+      return show(502, 'login.errorUnreachable');
     }
     if (!result.ok) {
-      if (result.reason === 'rate_limited') return show(429, 'Fredy hat zu viele Anmeldeversuche gezählt. Bitte später erneut versuchen.');
+      if (result.reason === 'rate_limited') return show(429, 'login.errorFredyRateLimit');
       limiter.add(ipKey);
       limiter.add(userKey);
-      log.warn(`Fehlgeschlagener Login für „${username}“ von ${req.ip}`);
-      return show(401, 'Benutzername oder Passwort falsch.');
+      log.warn(`Failed sign-in for "${username}" from ${req.ip}`);
+      return show(401, 'login.errorInvalid');
     }
 
     limiter.clear(userKey);
@@ -168,13 +181,15 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
     if (user.isAdmin && !config.adminUsername) setSetting(db, 'token_admin_username', user.username);
     fredy.forgetIdentity(user.username);
 
+    const lang = normalizeLanguage(result.language) || DEFAULT_LANGUAGE;
     const raw = randomToken(32);
     const t = now();
     db.prepare(
-      'INSERT INTO web_sessions (id_hash, user_id, username, is_admin, csrf, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).run(sha256(raw), user.userId, user.username, user.isAdmin ? 1 : 0, randomToken(24), t, t + config.webSessionTtlSeconds);
+      'INSERT INTO web_sessions (id_hash, user_id, username, is_admin, csrf, lang, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(sha256(raw), user.userId, user.username, user.isAdmin ? 1 : 0, randomToken(24), lang, t, t + config.webSessionTtlSeconds);
     setCookie(res, raw, config.webSessionTtlSeconds);
-    log.info(`Login: ${user.username}${user.isAdmin ? ' (Admin)' : ''} von ${req.ip}`);
+    setCookie(res, lang, 365 * 24 * 60 * 60, LANG_COOKIE);
+    log.info(`Sign-in: ${user.username}${user.isAdmin ? ' (admin)' : ''} from ${req.ip}`);
     res.redirect(303, next);
   });
 
@@ -188,34 +203,25 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
   router.get('/consent', requireLogin, (req, res) => {
     const pending = oauth.getPending(String(req.query.req || ''));
     if (!pending) {
-      return res.status(400).send(
-        messagePage({
-          title: 'Anfrage abgelaufen',
-          message: 'Diese Verbindungsanfrage ist abgelaufen oder unbekannt. Bitte im Client erneut verbinden.',
-          user: req.user,
-          csrf: req.csrf,
-        }),
-      );
+      return message(req, res, 400, 'error.requestExpiredTitle', 'error.requestExpired');
     }
     const ceiling = getRolePolicy(db, roleOf(req.user));
     const existing = db.prepare('SELECT * FROM grants WHERE user_id = ? AND client_id = ?').get(req.user.userId, pending.client.client_id);
     const selected = existing ? JSON.parse(existing.permissions) : defaultPermissions(ceiling);
-    res.send(consentPage({ user: req.user, csrf: req.csrf, pending, ceiling, selected, existing }));
+    res.send(consentPage(req.i, { user: req.user, csrf: req.csrf, pending, ceiling, selected, existing }));
   });
 
   router.post('/consent', requireLogin, checkCsrf, (req, res) => {
     const pending = oauth.getPending(String(req.body.req || ''));
     if (!pending) {
-      return res.status(400).send(
-        messagePage({ title: 'Anfrage abgelaufen', message: 'Bitte im Client erneut verbinden.', user: req.user, csrf: req.csrf }),
-      );
+      return message(req, res, 400, 'error.requestExpiredTitle', 'error.requestExpired');
     }
     if (req.body.action !== 'allow') return res.redirect(303, oauth.denyAuthorization(pending));
 
     const ceiling = new Set(getRolePolicy(db, roleOf(req.user)));
     const permissions = sanitizePermissions(list(req.body.perm)).filter((key) => ceiling.has(key));
     const t = now();
-    const clientName = String(pending.client.client_name || 'Unbekannter Client').slice(0, 120);
+    const clientName = String(pending.client.client_name || 'Unknown client').slice(0, 120);
     const redirectHost = new URL(pending.redirectUri).host;
     db.prepare(
       `INSERT INTO grants (id, user_id, username, client_id, client_name, redirect_host, permissions, created_at, updated_at)
@@ -224,7 +230,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
          client_name = excluded.client_name, updated_at = excluded.updated_at`,
     ).run(randomToken(12), req.user.userId, req.user.username, pending.client.client_id, clientName, redirectHost, JSON.stringify(permissions), t, t);
     const grant = db.prepare('SELECT id FROM grants WHERE user_id = ? AND client_id = ?').get(req.user.userId, pending.client.client_id);
-    log.info(`Verbindung freigegeben: ${req.user.username} → ${clientName} [${permissions.join(', ')}]`);
+    log.info(`Connection approved: ${req.user.username} → ${clientName} [${permissions.join(', ')}]`);
     res.redirect(303, oauth.completeAuthorization(pending, grant.id));
   });
 
@@ -255,7 +261,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
     }
     const ceilings = Object.fromEntries(Object.keys(ROLES).map((role) => [role, getRolePolicy(db, role)]));
     res.send(
-      dashboardPage({
+      dashboardPage(req.i, {
         user: req.user,
         csrf: req.csrf,
         mcpUrl: config.mcpUrl,
@@ -264,7 +270,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
         ceilings,
         proxyOk,
         checks,
-        flash: req.query.ok ? String(req.query.ok) : null,
+        flash: FLASH[req.query.ok] || null,
       }),
     );
   });
@@ -273,7 +279,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
   const loadGrant = (req, res, next) => {
     const grant = db.prepare('SELECT * FROM grants WHERE id = ?').get(req.params.id);
     if (!grant || (grant.user_id !== req.user.userId && !req.user.isAdmin)) {
-      return res.status(404).send(messagePage({ title: 'Nicht gefunden', message: 'Diese Verbindung gibt es nicht (mehr).', user: req.user, csrf: req.csrf }));
+      return message(req, res, 404, 'error.notFoundTitle', 'error.connectionNotFound');
     }
     req.grant = grant;
     next();
@@ -291,7 +297,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
     let upstreamTools = [];
     let upstreamError = null;
     if (!identity) {
-      upstreamError = 'Fredy bestätigt den Inhaber dieser Verbindung gerade nicht.';
+      upstreamError = req.i.t('connPage.ownerUnconfirmed');
     } else {
       try {
         upstreamTools = await upstream.listTools(identity);
@@ -300,7 +306,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
       }
     }
     res.send(
-      connectionPage({
+      connectionPage(req.i, {
         user: req.user,
         csrf: req.csrf,
         grant: req.grant,
@@ -337,26 +343,26 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
       now(),
       req.grant.id,
     );
-    log.info(`Rechte geändert von ${req.user.username}: ${req.grant.username} → ${req.grant.client_name} [${permissions.join(', ')}]`);
-    res.redirect(303, `/?ok=${encodeURIComponent('Gespeichert.')}`);
+    log.info(`Permissions changed by ${req.user.username}: ${req.grant.username} → ${req.grant.client_name} [${permissions.join(', ')}]`);
+    res.redirect(303, '/?ok=saved');
   });
 
   router.post('/connections/:id/revoke', requireLogin, checkCsrf, loadGrant, (req, res) => {
     db.prepare('DELETE FROM grants WHERE id = ?').run(req.grant.id);
-    log.info(`Verbindung getrennt von ${req.user.username}: ${req.grant.username} → ${req.grant.client_name}`);
-    res.redirect(303, `/?ok=${encodeURIComponent('Verbindung getrennt.')}`);
+    log.info(`Connection revoked by ${req.user.username}: ${req.grant.username} → ${req.grant.client_name}`);
+    res.redirect(303, '/?ok=revoked');
   });
 
   // ---- Rollen-Obergrenzen ------------------------------------------------------------------
   router.get('/admin/roles', requireLogin, requireAdmin, (req, res) => {
     const policies = Object.fromEntries(Object.keys(ROLES).map((role) => [role, getRolePolicy(db, role)]));
-    res.send(rolesPage({ user: req.user, csrf: req.csrf, policies }));
+    res.send(rolesPage(req.i, { user: req.user, csrf: req.csrf, policies }));
   });
 
   router.post('/admin/roles', requireLogin, requireAdmin, checkCsrf, (req, res) => {
     for (const role of Object.keys(ROLES)) setRolePolicy(db, role, list(req.body[role]));
-    log.info(`Rollen-Obergrenzen geändert von ${req.user.username}`);
-    res.redirect(303, `/?ok=${encodeURIComponent('Rollen-Obergrenzen gespeichert.')}`);
+    log.info(`Role limits changed by ${req.user.username}`);
+    res.redirect(303, '/?ok=rolesSaved');
   });
 
   return router;

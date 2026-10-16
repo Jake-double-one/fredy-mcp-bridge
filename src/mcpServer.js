@@ -9,12 +9,14 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { effectivePermissions, permissionForFredyTool, PERMISSIONS } from './permissions.js';
+import { effectivePermissions, permissionForFredyTool } from './permissions.js';
+import { translator } from './i18n.js';
 import { BRIDGE_TOOLS } from './tools.js';
 import { now } from './db.js';
 import { log } from './log.js';
 
-const LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.key, p.label]));
+// Meldungen an das Sprachmodell bleiben Englisch.
+const en = translator('en');
 
 function denied(config, permission, toolName) {
   return {
@@ -22,7 +24,7 @@ function denied(config, permission, toolName) {
       {
         type: 'text',
         text:
-          `This connection is not allowed to use "${toolName}" (permission "${LABEL[permission] || permission}" is off). ` +
+          `This connection is not allowed to use "${toolName}" (permission "${en.t(`perm.${permission}.label`)}" is off). ` +
           `The user can enable it at ${config.publicUrl}.`,
       },
     ],
@@ -51,7 +53,7 @@ export function createMcpHandler({ db, fredy, upstream, config }) {
       try {
         identity = await fredy.whoIs(grant.username);
       } catch (error) {
-        log.error(`Fredy nicht erreichbar: ${error.message}`);
+        log.error(`Fredy not reachable: ${error.message}`);
         throw new McpError(ErrorCode.InternalError, `Fredy is not reachable right now (${error.message}).`);
       }
       if (!identity) {
@@ -73,7 +75,7 @@ export function createMcpHandler({ db, fredy, upstream, config }) {
         upstreamTools = await upstream.listTools(identity);
       } catch (error) {
         upstreamError = error;
-        log.error(`Fredys MCP-Tools für ${identity.username} nicht abrufbar: ${error.message}`);
+        log.error(`Could not list Fredy's MCP tools for ${identity.username}: ${error.message}`);
       }
       context = { identity, permissions, blocked, upstreamTools, upstreamError };
       return context;
@@ -116,14 +118,14 @@ export function createMcpHandler({ db, fredy, upstream, config }) {
             isError: true,
           };
         }
-        log.info(`${identity.username} → Fredy-Tool ${name}`);
+        log.info(`${identity.username} → Fredy tool ${name}`);
         return upstream.callTool(identity, name, args);
       }
 
       const own = BRIDGE_TOOLS.find((t) => t.name === name);
       if (own) {
         if (!permissions.has(own.permission)) return denied(config, own.permission, name);
-        log.info(`${identity.username} → Bridge-Tool ${name}`);
+        log.info(`${identity.username} → bridge tool ${name}`);
         try {
           return await own.run(fredy, identity.username, args ?? {});
         } catch (error) {

@@ -10,65 +10,47 @@
  * - Was ein Benutzer in Fredy sehen und ändern darf, entscheidet weiterhin Fredy selbst.
  */
 
+// Bezeichnungen und Beschreibungen stehen in src/locales/*.json (perm.<key>.label / .desc).
 export const PERMISSIONS = [
   {
     key: 'fredy.read',
     source: 'fredy',
-    label: 'Fredy: Lesen',
-    description: 'Suchjobs, Inserate, Fotos, Anschreiben, Finanzierungsrechner – alle Fredy-Tools, die nur lesen.',
     defaultOn: true,
   },
   {
     key: 'fredy.write',
     source: 'fredy',
-    label: 'Fredy: Schreiben',
-    description:
-      'Fredys eigene Schreib-Tools: Notizen, Merkliste, Suchjobs per Interview anlegen – und was Fredy künftig ergänzt.',
     defaultOn: true,
   },
   {
     key: 'listings.hide',
     source: 'bridge',
-    label: 'Inserate löschen (ausblenden) & wiederherstellen',
-    description:
-      'Wie „Löschen“ in der Fredy-Oberfläche: Das Inserat verschwindet und kommt beim nächsten Suchlauf nicht wieder. Jederzeit rückgängig zu machen.',
     defaultOn: false,
   },
   {
     key: 'listings.hard_delete',
     source: 'bridge',
-    label: 'Inserate endgültig löschen',
-    description:
-      'Entfernt Inserate unwiderruflich aus der Datenbank. Ist das Inserat noch online, meldet Fredy es beim nächsten Lauf erneut als neu.',
     defaultOn: false,
     danger: true,
   },
   {
     key: 'listings.status',
     source: 'bridge',
-    label: 'Bewerbungsstatus setzen',
-    description: 'Inserate als beworben, abgesagt oder zugesagt markieren – oder den Status entfernen.',
     defaultOn: false,
   },
   {
     key: 'listings.scam',
     source: 'bridge',
-    label: 'Betrugsverdacht markieren',
-    description: 'Inserate als Betrug oder als unbedenklich einstufen – oder die Einstufung zurücknehmen.',
     defaultOn: false,
   },
   {
     key: 'jobs.run',
     source: 'bridge',
-    label: 'Suchjobs sofort starten',
-    description: 'Einen Suchlauf außerhalb des Zeitplans auslösen.',
     defaultOn: false,
   },
   {
     key: 'jobs.toggle',
     source: 'bridge',
-    label: 'Suchjobs aktivieren & pausieren',
-    description: 'Suchjobs ein- oder ausschalten.',
     defaultOn: false,
   },
 ];
@@ -76,10 +58,8 @@ export const PERMISSIONS = [
 export const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
 const KNOWN = new Set(PERMISSION_KEYS);
 
-export const ROLES = {
-  admin: 'Admins',
-  user: 'Benutzer',
-};
+/** Fredy kennt genau zwei Rollen. Texte stehen in den Sprachdateien (roles.admin / roles.user). */
+export const ROLES = { admin: 'admin', user: 'user' };
 
 /** Ausgangswerte der Rollen-Obergrenzen, solange ein Admin nichts anderes eingestellt hat. */
 export const DEFAULT_ROLE_POLICIES = {
@@ -105,7 +85,7 @@ export function getRolePolicy(db, role) {
 }
 
 export function setRolePolicy(db, role, allowed) {
-  if (!ROLES[role]) throw new Error(`Unbekannte Rolle ${role}`);
+  if (!ROLES[role]) throw new Error(`Unknown role ${role}`);
   db.prepare(
     'INSERT INTO role_policies (role, allowed) VALUES (?, ?) ON CONFLICT(role) DO UPDATE SET allowed = excluded.allowed',
   ).run(role, JSON.stringify(sanitizePermissions(allowed)));
