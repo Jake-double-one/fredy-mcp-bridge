@@ -88,7 +88,14 @@ const MIGRATIONS = [
   `UPDATE role_policies SET allowed = json_insert(json_insert(allowed, '$[#]', 'finance.read'), '$[#]', 'finance.write');`,
   // Neues Recht „Inseratstexte nachladen“, ebenso in bestehenden Obergrenzen erlauben.
   `UPDATE role_policies SET allowed = json_insert(allowed, '$[#]', 'listings.details');`,
+  // Eigener Name für eine Verbindung; leer = Name, mit dem sich der Client registriert hat.
+  `ALTER TABLE grants ADD COLUMN custom_name TEXT;`,
 ];
+
+/** Anzeigename einer Verbindung. */
+export function grantName(grant) {
+  return grant.custom_name || grant.client_name;
+}
 
 export function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');

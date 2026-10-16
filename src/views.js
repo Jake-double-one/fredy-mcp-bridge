@@ -5,6 +5,7 @@
 
 import { PERMISSIONS, ROLES } from './permissions.js';
 import { DETAILS_PER_HOUR } from './tools.js';
+import { grantName } from './db.js';
 
 // Werte, die in Berechtigungstexten als Platzhalter vorkommen.
 const PERM_VARS = { perHour: String(DETAILS_PER_HOUR) };
@@ -191,7 +192,8 @@ function connectionBlock(i, grant, ceiling, csrf, showUser) {
   // confirm() bekommt den Text als JSON-String; im Attribut zusätzlich HTML-escaped.
   const confirmText = esc(JSON.stringify(i.t('conn.revokeConfirm')));
   return `<div class="conn"><div class="spread"><div>
-<strong>${esc(grant.client_name)}</strong>${showUser ? ` <span class="chip">${esc(grant.username)}</span>` : ''}<br>
+<strong>${esc(grantName(grant))}</strong>${showUser ? ` <span class="chip">${esc(grant.username)}</span>` : ''}<br>
+${grant.custom_name ? `<span class="small muted">${th(i, 'conn.clientName', { client: esc(grant.client_name) })}</span><br>` : ''}
 <span class="small muted">${meta}</span></div>
 <div class="row"><a class="btn btn-secondary btn-sm" href="/connections/${esc(grant.id)}">${th(i, 'conn.edit')}</a>
 <form method="post" action="/connections/${esc(grant.id)}/revoke" style="margin:0" onsubmit="return confirm(${confirmText})">
@@ -268,10 +270,12 @@ export function connectionPage(i, { user, csrf, grant, ceiling, upstreamTools, u
     title: i.t('connPage.title'),
     user,
     csrf,
-    body: `<div class="card"><h1>${esc(grant.client_name)}</h1>
+    body: `<div class="card"><h1>${esc(grantName(grant))}</h1>
 <p class="lead">${th(i, 'connPage.lead', { user: `<strong>${esc(grant.username)}</strong>` })}${grant.redirect_host ? ` · ${esc(grant.redirect_host)}` : ''}</p>
 <form method="post" action="/connections/${esc(grant.id)}">
 <input type="hidden" name="_csrf" value="${esc(csrf)}">
+<label class="field">${th(i, 'connPage.nameLabel')}<input type="text" name="name" maxlength="60" value="${esc(grant.custom_name || '')}" placeholder="${esc(grant.client_name)}"></label>
+<p class="small muted" style="margin-top:-8px">${th(i, 'connPage.nameHelp', { client: `<strong>${esc(grant.client_name)}</strong>` })}</p>
 ${permissionItems(i, { ceiling, selected })}
 <h2 style="margin-top:24px">${th(i, 'connPage.toolsHeading')}</h2>
 ${toolsHtml}

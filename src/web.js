@@ -5,7 +5,7 @@
 
 import express from 'express';
 import crypto from 'node:crypto';
-import { randomToken, sha256, now, setSetting } from './db.js';
+import { randomToken, sha256, now, setSetting, grantName } from './db.js';
 import {
   ROLES,
   defaultPermissions,
@@ -337,19 +337,29 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
         if (tools) blocked = tools.map((t) => t.name).filter((name) => !allowedTools.has(name));
       }
     }
-    db.prepare('UPDATE grants SET permissions = ?, blocked_tools = ?, updated_at = ? WHERE id = ?').run(
+    // Eigener Name: Steuerzeichen raus, Leerraum zusammenfassen, max. 60 Zeichen; leer = Client-Name.
+    const customName =
+      String(req.body.name ?? '')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 60) || null;
+    db.prepare('UPDATE grants SET permissions = ?, blocked_tools = ?, custom_name = ?, updated_at = ? WHERE id = ?').run(
       JSON.stringify(permissions),
       JSON.stringify(blocked),
+      customName,
       now(),
       req.grant.id,
     );
-    log.info(`Permissions changed by ${req.user.username}: ${req.grant.username} → ${req.grant.client_name} [${permissions.join(', ')}]`);
+    log.info(
+      `Connection updated by ${req.user.username}: ${req.grant.username} → ${customName || req.grant.client_name} [${permissions.join(', ')}]`,
+    );
     res.redirect(303, '/?ok=saved');
   });
 
   router.post('/connections/:id/revoke', requireLogin, checkCsrf, loadGrant, (req, res) => {
     db.prepare('DELETE FROM grants WHERE id = ?').run(req.grant.id);
-    log.info(`Connection revoked by ${req.user.username}: ${req.grant.username} → ${req.grant.client_name}`);
+    log.info(`Connection revoked by ${req.user.username}: ${req.grant.username} → ${grantName(req.grant)}`);
     res.redirect(303, '/?ok=revoked');
   });
 
