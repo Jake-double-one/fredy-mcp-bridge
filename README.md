@@ -21,7 +21,9 @@ MCP-Client (Claude.ai, ChatGPT, …)
   neu mitbringt.
 - **Ergänzen:** Inserate löschen (ausblenden) und wiederherstellen, endgültig löschen,
   Bewerbungsstatus, Betrugsmarkierung, Suchjob starten, Suchjob aktivieren/pausieren,
-  Finanzprofil (Fredys Finanzierung) ansehen und gezielt ändern.
+  Finanzprofil (Fredys Finanzierung) ansehen und gezielt ändern, Inseratsdetails beim Portal
+  nachladen (wie „Aktualisieren“ bei der Beschreibung; gebremst auf einen Abruf gleichzeitig und
+  `DETAILS_REFRESH_PER_HOUR` pro Stunde, Standard 20).
 - **OAuth für Remote-Connectoren** mit eigener Login-Seite – angemeldet wird mit dem **Fredy-Konto**.
 - **Rechte pro Verbindung:** Was Fredy anbietet, ist standardmäßig an; alle Zusätze sind Opt-in.
   Einzelne Fredy-Tools lassen sich pro Verbindung sperren. Verbindungen jederzeit trennbar.
@@ -57,6 +59,7 @@ Netz `fredy-net` mit fester IP für die Bridge und die Stack-Variable `FREDY_PRO
 | `FREDY_PROXY_USER_HEADER` | | Standard `Remote-User` |
 | `FREDY_PROXY_SECRET_HEADER` | | Standard `X-Fredy-Proxy-Secret` |
 | `FREDY_ADMIN_USERNAME` | | Fredy-Admin zum Abholen der MCP-Tokens; ohne Angabe der zuletzt an der Bridge angemeldete Admin |
+| `DETAILS_REFRESH_PER_HOUR` | | Höchstzahl Detailseiten-Abrufe pro Benutzer und Stunde, Standard 20 |
 | `TRUST_PROXY` | | Wem X-Forwarded-For geglaubt wird, Standard: private Netze |
 | `TZ` | | Zeitzone für die Anzeige |
 

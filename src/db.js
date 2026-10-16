@@ -86,6 +86,8 @@ const MIGRATIONS = [
   // Neue Rechte fürs Finanzprofil: in bereits gespeicherten Rollen-Obergrenzen erlauben, wie im
   // Standard. Jede Verbindung muss sie trotzdem einzeln einschalten (Opt-in).
   `UPDATE role_policies SET allowed = json_insert(json_insert(allowed, '$[#]', 'finance.read'), '$[#]', 'finance.write');`,
+  // Neues Recht „Inseratstexte nachladen“, ebenso in bestehenden Obergrenzen erlauben.
+  `UPDATE role_policies SET allowed = json_insert(allowed, '$[#]', 'listings.details');`,
 ];
 
 export function sha256(value) {

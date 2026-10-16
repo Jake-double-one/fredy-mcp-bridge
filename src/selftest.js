@@ -19,6 +19,7 @@ const ENDPOINTS = [
   ['GET', '/api/listings/table'],
   ['POST', '/api/listings/selftest/status'],
   ['POST', '/api/listings/selftest/scam'],
+  ['POST', '/api/listings/selftest/details'],
   ['POST', '/api/jobs/selftest/run'],
   ['PUT', '/api/jobs/selftest/status'],
   ['GET', '/api/admin/users/selftest/mcp-token'],

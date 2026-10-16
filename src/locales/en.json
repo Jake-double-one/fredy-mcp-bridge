@@ -43,6 +43,8 @@
   "perm.listings.status.desc": "Mark listings as applied, rejected or accepted – or clear the status.",
   "perm.listings.scam.label": "Mark potential scams",
   "perm.listings.scam.desc": "Mark listings as scam or as no scam – or take the verdict back.",
+  "perm.listings.details.label": "Refresh listing details",
+  "perm.listings.details.desc": "Like “Refresh” under a listing's description: Fredy fetches the detail page from the portal again, e.g. when the text is cut off. Limited to one at a time and 20 per hour, so the portal does not block you.",
   "perm.jobs.run.label": "Run jobs now",
   "perm.jobs.run.desc": "Start a search outside the schedule.",
   "perm.jobs.toggle.label": "Enable and pause jobs",

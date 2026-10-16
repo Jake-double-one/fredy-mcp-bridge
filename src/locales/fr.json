@@ -43,6 +43,8 @@
   "perm.listings.status.desc": "Marquer des annonces comme candidature envoyée, refusée ou acceptée – ou retirer le statut.",
   "perm.listings.scam.label": "Signaler les arnaques possibles",
   "perm.listings.scam.desc": "Marquer des annonces comme arnaque ou comme fiables – ou retirer le verdict.",
+  "perm.listings.details.label": "Récupérer les détails d'une annonce",
+  "perm.listings.details.desc": "Comme « Actualiser » sous la description d'une annonce : Fredy consulte à nouveau la page détaillée sur le portail, par exemple si le texte est tronqué. Limité à une consultation à la fois et 20 par heure, pour que le portail ne vous bloque pas.",
   "perm.jobs.run.label": "Lancer des recherches maintenant",
   "perm.jobs.run.desc": "Démarrer une recherche en dehors du planning.",
   "perm.jobs.toggle.label": "Activer et suspendre des recherches",

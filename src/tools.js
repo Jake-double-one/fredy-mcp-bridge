@@ -17,6 +17,20 @@ const idList = {
   description: 'Listing ids as returned by list_listings / get_listing (the "id" field).',
 };
 
+// Detailseiten-Abrufe gehen an das Portal. Fredy begrenzt den Knopf nicht, weil ein Mensch ihn
+// einzeln drückt; ein Sprachmodell kann dagegen in einer Schleife abrufen. Deshalb bremst die
+// Bridge: ein Abruf gleichzeitig und höchstens DETAILS_REFRESH_PER_HOUR pro Benutzer und Stunde.
+const DETAILS_PER_HOUR = Math.max(1, Number(process.env.DETAILS_REFRESH_PER_HOUR) || 20);
+const detailRuns = new Map(); // username -> { running: boolean, times: number[] }
+
+const DETAIL_STATUS = {
+  unchanged:
+    'Fredy could not get anything more from the listing page. Either there is nothing more on the page, or the portal turned the request away.',
+  unsupported: 'Fredy cannot read detail pages for this portal.',
+  failed: 'Refreshing failed. Try again later.',
+  busy: 'A refresh for this listing is already running.',
+};
+
 const HIDDEN_FIELDS = ['id', 'title', 'price', 'size', 'rooms', 'address', 'provider', 'link', 'job_name', 'created_at'];
 
 function text(value) {
@@ -195,6 +209,47 @@ export const BRIDGE_TOOLS = [
       const res = await fredy.asUser(username, 'POST', `/api/listings/${encodeURIComponent(listingId)}/scam`, { override: verdict });
       if (res.status !== 200) return fredyFailure(res.status, res.data, 'Could not update the scam verdict.');
       return text(verdict ? `Marked as "${verdict}".` : 'Scam verdict cleared.');
+    },
+  },
+  {
+    name: 'refresh_listing_details',
+    permission: 'listings.details',
+    definition: {
+      title: 'Refresh listing details',
+      description:
+        "Fetch a listing's detail page from the portal again – the same as the refresh button on Fredy's listing page. " +
+        'Use it when the description is cut off or missing. Updates the full description, address, build year, energy class and publication date. ' +
+        'Contacts the portal, so call it for single listings only, not in bulk: it is limited to one at a time and ' +
+        `${DETAILS_PER_HOUR} per hour.`,
+      inputSchema: { type: 'object', properties: { listingId: { type: 'string', minLength: 1 } }, required: ['listingId'], additionalProperties: false },
+      annotations: { title: 'Refresh listing details', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async run(fredy, username, args) {
+      const listingId = requireString(args, 'listingId');
+      const state = detailRuns.get(username) || { running: false, times: [] };
+      detailRuns.set(username, state);
+      state.times = state.times.filter((t) => t > Date.now() - 60 * 60 * 1000);
+      if (state.running) return failure('Another detail refresh is still running. Wait for it to finish, then try again.');
+      if (state.times.length >= DETAILS_PER_HOUR) {
+        const minutes = Math.ceil((state.times[0] + 60 * 60 * 1000 - Date.now()) / 60000);
+        return failure(`Limit of ${DETAILS_PER_HOUR} detail refreshes per hour reached. Try again in about ${minutes} minute(s).`);
+      }
+      state.running = true;
+      state.times.push(Date.now());
+      try {
+        const res = await fredy.asUser(username, 'POST', `/api/listings/${encodeURIComponent(listingId)}/details`);
+        const status = res.data?.status;
+        // Abgelehnt (fremdes Inserat, Demo-Modus …) oder schon laufend: das Portal wurde nicht
+        // kontaktiert, also zählt es nicht gegen das Stundenlimit.
+        if (res.status !== 200 || status === 'busy') state.times.pop();
+        if (res.status !== 200) return fredyFailure(res.status, res.data, 'Could not refresh the listing details.');
+        if (status !== 'updated') return status === 'unchanged' || status === 'busy' ? text(DETAIL_STATUS[status]) : failure(DETAIL_STATUS[status] || `Unexpected answer from Fredy: ${status}`);
+        const l = res.data.listing || {};
+        const pick = { title: l.title, description: l.description, address: l.address, buildYear: l.build_year, energyClass: l.energy_class, publishedAt: l.published_at };
+        return text({ status: 'updated', ...Object.fromEntries(Object.entries(pick).filter(([, v]) => v != null)) });
+      } finally {
+        state.running = false;
+      }
     },
   },
   {
