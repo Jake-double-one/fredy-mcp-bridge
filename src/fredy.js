@@ -13,6 +13,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { getSetting } from './db.js';
 import { log } from './log.js';
+import { VERSION } from './version.js';
 
 const SESSION_COOKIE = 'fredy-admin-session';
 const IDENTITY_TTL_MS = 60 * 1000;
@@ -204,15 +205,19 @@ export class UpstreamPool {
     this.fredy = fredy;
     this.config = config;
     this.connections = new Map();
+    // Fredys eigene Anleitung für Clients („instructions“ aus initialize). Sie ist für alle
+    // Benutzer gleich und wird an die Clients der Bridge weitergereicht.
+    this.instructions = null;
   }
 
   async connect(identity) {
     const token = await this.fredy.fetchMcpToken(identity);
-    const client = new Client({ name: 'fredy-mcp-bridge', version: '0.1.0' });
+    const client = new Client({ name: 'fredy-mcp-bridge', version: VERSION.version });
     const transport = new StreamableHTTPClientTransport(new URL(`${this.config.fredyUrl}/api/mcp`), {
       requestInit: { headers: { Authorization: `Bearer ${token}` } },
     });
     await client.connect(transport);
+    this.instructions = client.getInstructions() || this.instructions;
     return { client, tools: null, toolsExpires: 0 };
   }
 

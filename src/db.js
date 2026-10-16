@@ -90,7 +90,21 @@ const MIGRATIONS = [
   `UPDATE role_policies SET allowed = json_insert(allowed, '$[#]', 'listings.details');`,
   // Eigener Name für eine Verbindung; leer = Name, mit dem sich der Client registriert hat.
   `ALTER TABLE grants ADD COLUMN custom_name TEXT;`,
+  // Feste Zugangs-Tokens für Clients ohne OAuth. Eine Token-Verbindung ist ein normaler Grant
+  // (kind = 'token') – gleiche Rechte, gleiche Verwaltung, gleiches Trennen.
+  `
+  ALTER TABLE grants ADD COLUMN kind TEXT NOT NULL DEFAULT 'oauth';
+  CREATE TABLE static_tokens (
+    token_hash TEXT PRIMARY KEY,
+    grant_id TEXT NOT NULL UNIQUE REFERENCES grants(id) ON DELETE CASCADE,
+    prefix TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER
+  );
+  `,
 ];
+
+export const STATIC_TOKEN_PREFIX = 'fmb_';
 
 /** Anzeigename einer Verbindung. */
 export function grantName(grant) {

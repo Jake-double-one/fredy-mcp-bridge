@@ -14,6 +14,7 @@ import { translator } from './i18n.js';
 import { BRIDGE_TOOLS } from './tools.js';
 import { now } from './db.js';
 import { log } from './log.js';
+import { VERSION } from './version.js';
 
 // Meldungen an das Sprachmodell bleiben Englisch.
 const en = translator('en');
@@ -30,6 +31,22 @@ function denied(config, permission, toolName) {
     ],
     isError: true,
   };
+}
+
+const BRIDGE_INSTRUCTIONS =
+  'This server is Fredy (a real-estate search tool) behind fredy-mcp-bridge. It offers Fredy\'s own tools plus extra bridge tools, ' +
+  'depending on what the user allowed for this connection. ' +
+  'To delete listings use hide_listings: hidden listings do not come back with future searches and can be restored with restore_listings. ' +
+  'Only use delete_listings_permanently when the user explicitly asks for permanent deletion. ' +
+  'refresh_listing_details contacts the portal: use it for single listings whose description is cut off, never in bulk. ' +
+  'update_finance_profile changes only the fields passed; read get_finance_profile first when unsure. ' +
+  'If a tool is missing or refused, the user can enable it on the bridge page.';
+
+/** Hinweise der Bridge plus Fredys eigene Anleitung, damit Clients beide Tool-Sätze richtig nutzen. */
+export function buildInstructions(upstreamInstructions) {
+  return upstreamInstructions
+    ? `${BRIDGE_INSTRUCTIONS}\n\nFredy's own guidance for its tools:\n${upstreamInstructions}`
+    : BRIDGE_INSTRUCTIONS;
 }
 
 export function createMcpHandler({ db, fredy, upstream, config }) {
@@ -81,14 +98,16 @@ export function createMcpHandler({ db, fredy, upstream, config }) {
       return context;
     };
 
+    // Beim Verbindungsaufbau Fredys Anleitung holen, falls die Bridge sie noch nicht kennt
+    // (z. B. direkt nach einem Neustart). Scheitert das, startet die Verbindung trotzdem.
+    const messages = Array.isArray(req.body) ? req.body : [req.body];
+    if (!upstream.instructions && messages.some((m) => m?.method === 'initialize')) {
+      await resolve().catch(() => {});
+    }
+
     const server = new Server(
-      { name: 'fredy-mcp-bridge', version: '0.1.0' },
-      {
-        capabilities: { tools: {} },
-        instructions:
-          'Fredy real-estate search (via fredy-mcp-bridge). To delete listings use hide_listings: hidden listings do not come back with ' +
-          'future searches and can be restored. Only use delete_listings_permanently when the user explicitly wants permanent deletion.',
-      },
+      { name: 'fredy-mcp-bridge', version: VERSION.version },
+      { capabilities: { tools: {} }, instructions: buildInstructions(upstream.instructions) },
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => {

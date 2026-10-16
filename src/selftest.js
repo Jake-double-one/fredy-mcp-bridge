@@ -76,14 +76,33 @@ export async function runSelfTest({ fredy, config, db }) {
   return checks;
 }
 
+/** Letztes Ergebnis – Grundlage für /healthz und die Admin-Übersicht. */
+export const selfTestState = { at: 0, checks: [] };
+
+/** Gesund, solange keine Prüfung „bad“ ist („warn“ – z. B. noch kein Admin angemeldet – zählt nicht). */
+export function isHealthy() {
+  return !selfTestState.checks.some((c) => c.state === 'bad');
+}
+
+/**
+ * Führt den Selbsttest aus und schreibt ins Log – beim ersten Lauf vollständig, danach nur, wenn
+ * sich etwas geändert hat. So bleibt das Log ruhig, obwohl alle paar Minuten geprüft wird.
+ */
 export async function logSelfTest(deps) {
   const checks = await runSelfTest(deps);
   const { t } = translator('en');
-  for (const check of checks) {
-    const line = `Self-test: ${t(check.name)} – ${check.raw ?? t(check.message, check.vars)}`;
-    if (check.state === 'ok') log.info(line);
-    else if (check.state === 'warn') log.warn(line);
-    else log.error(`!!! ${line}`);
+  const lines = checks.map((check) => ({
+    state: check.state,
+    text: `Self-test: ${t(check.name)} – ${check.raw ?? t(check.message, check.vars)}`,
+  }));
+  const signature = JSON.stringify(lines);
+  if (signature !== selfTestState.signature) {
+    for (const { state, text } of lines) {
+      if (state === 'ok') log.info(text);
+      else if (state === 'warn') log.warn(text);
+      else log.error(`!!! ${text}`);
+    }
   }
+  Object.assign(selfTestState, { at: Date.now(), checks, signature });
   return checks;
 }

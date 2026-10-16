@@ -12,12 +12,16 @@ RUN npm ci --omit=dev --no-audit --no-fund
 FROM node:22-bookworm-slim
 ARG VERSION=dev
 ARG REVISION=unknown
+ARG BUILD_DATE=
 LABEL org.opencontainers.image.title="fredy-mcp-bridge" \
       org.opencontainers.image.description="MCP-Sidecar für Fredy mit OAuth und Rechten pro Verbindung" \
       org.opencontainers.image.source="https://github.com/Jake-double-one/fredy-mcp-bridge" \
       org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.revision="${REVISION}"
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
 ENV NODE_ENV=production \
+    BRIDGE_REVISION=${REVISION} \
+    BRIDGE_BUILD_DATE=${BUILD_DATE} \
     PORT=3000 \
     DATA_DIR=/data \
     TZ=Europe/Berlin

@@ -7,7 +7,7 @@ import { FredyClient, UpstreamPool } from './fredy.js';
 import { BridgeOAuthProvider, OAUTH_SCOPE } from './oauth.js';
 import { createMcpHandler } from './mcpServer.js';
 import { createWebRouter } from './web.js';
-import { logSelfTest } from './selftest.js';
+import { logSelfTest, isHealthy, selfTestState } from './selftest.js';
 import { log, setLogLevel } from './log.js';
 
 export function createApp(config, db) {
@@ -19,7 +19,12 @@ export function createApp(config, db) {
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
 
-  app.get('/healthz', (req, res) => res.json({ ok: true }));
+  // Für den Docker-Healthcheck: 503, sobald der Selbsttest eine Prüfung als fehlgeschlagen meldet
+  // (Fredy nicht erreichbar, API geändert, Proxy-Anmeldung kaputt). Portainer zeigt dann „unhealthy“.
+  app.get('/healthz', (req, res) => {
+    const failing = selfTestState.checks.filter((c) => c.state === 'bad').map((c) => c.name.replace(/^check\./, ''));
+    res.status(isHealthy() ? 200 : 503).json({ ok: isHealthy(), failing });
+  });
 
   const issuerUrl = new URL(config.publicUrl);
   const mcpUrl = new URL(config.mcpUrl);
@@ -80,9 +85,13 @@ async function main() {
     log.info(`Fredy MCP Bridge listening on port ${config.port} – public: ${config.publicUrl}, Fredy: ${config.fredyUrl}`);
   });
 
-  const selfTest = () => logSelfTest({ fredy, config, db }).catch((error) => log.error('Self-test failed', error));
+  // Alle 5 Minuten prüfen; nach einem Fehler schon nach 30 Sekunden erneut, damit ein kurzer
+  // Aussetzer (z. B. Fredy startet langsamer als die Bridge) nicht minutenlang „unhealthy“ bleibt.
+  const selfTest = async () => {
+    await logSelfTest({ fredy, config, db }).catch((error) => log.error('Self-test failed', error));
+    setTimeout(selfTest, isHealthy() ? 5 * 60 * 1000 : 30 * 1000).unref();
+  };
   setTimeout(selfTest, 3000).unref();
-  setInterval(selfTest, 60 * 60 * 1000).unref();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

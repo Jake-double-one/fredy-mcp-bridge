@@ -6,6 +6,7 @@
 import { PERMISSIONS, ROLES } from './permissions.js';
 import { DETAILS_PER_HOUR } from './tools.js';
 import { grantName } from './db.js';
+import { VERSION, REPO_URL } from './version.js';
 
 // Werte, die in Berechtigungstexten als Platzhalter vorkommen.
 const PERM_VARS = { perHour: String(DETAILS_PER_HOUR) };
@@ -50,7 +51,7 @@ h1{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}
 h2{font-size:17px;margin:0 0 12px}
 .lead{margin:0 0 18px;color:var(--muted)}
 label.field{display:block;margin-bottom:14px;font-size:14px;font-weight:600}
-input[type=text],input[type=password]{display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit}
+input[type=text],input[type=password],select.select{display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit}
 .btn{display:inline-block;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}
 .btn-primary{background:var(--accent);color:var(--accent-fg)}
 .btn-secondary{background:var(--chip);color:var(--fg)}
@@ -101,7 +102,46 @@ export function layout(i, { title, body, user, csrf, narrow = false }) {
 <meta name="robots" content="noindex"><title>${esc(title)} · Fredy MCP Bridge</title><style>${CSS}</style></head>
 <body><header><a class="brand" href="/"><span class="heart">&#10084;</span> Fredy MCP Bridge</a>${who}</header>
 <main class="${narrow ? 'narrow' : ''}">${body}</main>
-<footer>${th(i, 'layout.footer')}</footer></body></html>`;
+<footer>${th(i, 'layout.footer')}<br>${user ? `${esc(versionLabel(i))} · ` : ''}<a href="${REPO_URL}" target="_blank" rel="noopener">${th(
+    i,
+    'layout.repo',
+  )}</a></footer></body></html>`;
+}
+
+/** „Fredy MCP Bridge 0.2.0 · abc1234 · 16.10.2026“ – Version nur für angemeldete Benutzer. */
+function versionLabel(i) {
+  const parts = [`Fredy MCP Bridge ${VERSION.version}`];
+  if (VERSION.shortRevision) parts.push(VERSION.shortRevision);
+  parts.push(VERSION.buildDate ? i.t('version.built', { date: fmtDate(i, Date.parse(VERSION.buildDate) / 1000) }) : i.t('version.localBuild'));
+  return parts.join(' · ');
+}
+
+function versionList(i, versions) {
+  const bridgeRev = VERSION.commitUrl
+    ? ` · <a href="${esc(VERSION.commitUrl)}" target="_blank" rel="noopener" class="mono">${esc(VERSION.shortRevision)}</a>`
+    : '';
+  const bridgeBuilt = VERSION.buildDate
+    ? th(i, 'version.built', { date: esc(fmtDate(i, Date.parse(VERSION.buildDate) / 1000)) })
+    : th(i, 'version.localBuild');
+  const bridgeState = versions.bridgeUpdate
+    ? ` – <span class="warn">${th(i, 'version.bridgeUpdate', { link: `<a href="${REPO_URL}/commits/main" target="_blank" rel="noopener">GitHub</a>` })}</span>`
+    : '';
+  const f = versions.fredy;
+  let fredy = th(i, 'version.unknown');
+  if (f?.localFredyVersion) {
+    fredy = esc(f.localFredyVersion);
+    if (f.newVersion && f.version) {
+      fredy += ` – <span class="warn">${th(i, 'version.fredyUpdate', {
+        version: f.url ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.version)}</a>` : esc(f.version),
+      })}</span>`;
+    } else if (f.checked) {
+      fredy += ` – <span class="ok">${th(i, 'version.upToDate')}</span>`;
+    }
+  }
+  return `<ul class="status small" style="padding-left:0;list-style:none;margin:0">
+<li><strong>Fredy MCP Bridge</strong> ${esc(VERSION.version)}${bridgeRev} · ${bridgeBuilt}${bridgeState}</li>
+<li><strong>Fredy</strong> ${fredy}</li></ul>
+<p class="small" style="margin:10px 0 0"><a href="${REPO_URL}" target="_blank" rel="noopener">${th(i, 'layout.repo')}</a></p>`;
 }
 
 export function loginPage(i, { error, next, username }) {
@@ -181,9 +221,18 @@ function permissionChips(i, grant, ceiling) {
   return chips.join('') || `<span class="muted small">${th(i, 'conn.noPermissions')}</span>`;
 }
 
+function tokenExpiry(i, grant) {
+  if (grant.kind !== 'token') return null;
+  if (!grant.token_expires_at) return th(i, 'conn.noExpiry');
+  if (grant.token_expires_at < Date.now() / 1000) return `<span class="bad">${th(i, 'conn.expired')}</span>`;
+  return th(i, 'conn.expiresAt', { date: esc(fmtDate(i, grant.token_expires_at)) });
+}
+
 function connectionBlock(i, grant, ceiling, csrf, showUser) {
   const meta = [
+    grant.kind === 'token' ? `<span class="chip">${th(i, 'conn.tokenChip')}</span>` : null,
     grant.redirect_host ? esc(grant.redirect_host) : null,
+    tokenExpiry(i, grant),
     th(i, 'conn.connectedAt', { date: esc(fmtDate(i, grant.created_at)) }),
     th(i, 'conn.lastUsed', { date: esc(fmtDate(i, grant.last_used_at)) }),
   ]
@@ -208,7 +257,7 @@ function statusList(i, checks) {
     .join('')}</ul>`;
 }
 
-export function dashboardPage(i, { user, csrf, mcpUrl, myGrants, otherGrants, ceilings, proxyOk, checks, flash }) {
+export function dashboardPage(i, { user, csrf, mcpUrl, myGrants, otherGrants, ceilings, proxyOk, checks, versions, flash }) {
   const mine = myGrants.length
     ? myGrants.map((g) => connectionBlock(i, g, ceilings[user.isAdmin ? 'admin' : 'user'], csrf, false)).join('')
     : `<p class="muted">${th(i, 'dash.mineEmpty')}</p>`;
@@ -221,7 +270,8 @@ export function dashboardPage(i, { user, csrf, mcpUrl, myGrants, otherGrants, ce
       }</div>
 <div class="card"><div class="spread"><h2>${th(i, 'dash.roles')}</h2><a class="btn btn-secondary btn-sm" href="/admin/roles">${th(i, 'dash.rolesEdit')}</a></div>
 <p class="small muted">${th(i, 'dash.rolesDesc')}</p></div>
-<div class="card"><h2>${th(i, 'dash.status')}</h2>${statusList(i, checks)}</div>`
+<div class="card"><h2>${th(i, 'dash.status')}</h2>${statusList(i, checks)}</div>
+<div class="card"><h2>${th(i, 'version.heading')}</h2>${versions ? versionList(i, versions) : ''}</div>`
     : '';
 
   const copied = esc(JSON.stringify(i.t('dash.copied')));
@@ -239,7 +289,7 @@ ${
 <p class="lead">${th(i, 'dash.connectorLead', { path: `<em>${th(i, 'dash.connectorPath')}</em>` })}</p>
 <div class="copy"><input type="text" id="mcpurl" value="${esc(mcpUrl)}" readonly>
 <button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('mcpurl').value);this.textContent=${copied}">${th(i, 'dash.copy')}</button></div></div>
-<div class="card"><h2>${th(i, 'dash.mine')}</h2>${mine}</div>
+<div class="card"><div class="spread"><h2>${th(i, 'dash.mine')}</h2><a class="btn btn-secondary btn-sm" href="/tokens/new">${th(i, 'tokens.create')}</a></div>${mine}</div>
 ${adminCards}`,
   });
 }
@@ -282,6 +332,47 @@ ${toolsHtml}
 <input type="hidden" name="toolsShown" value="${upstreamError ? '0' : '1'}">
 <div class="row"><button class="btn btn-primary" type="submit">${th(i, 'common.save')}</button><a class="btn btn-secondary" href="/">${th(i, 'common.back')}</a></div>
 </form></div>`,
+  });
+}
+
+export function tokenNewPage(i, { user, csrf, ceiling, selected }) {
+  const options = [
+    ['30', 'tokens.expiry30'],
+    ['90', 'tokens.expiry90'],
+    ['365', 'tokens.expiry365'],
+    ['never', 'tokens.expiryNever'],
+  ]
+    .map(([value, key]) => `<option value="${value}" ${value === '90' ? 'selected' : ''}>${th(i, key)}</option>`)
+    .join('');
+  return layout(i, {
+    title: i.t('tokens.newTitle'),
+    user,
+    csrf,
+    body: `<div class="card"><h1>${th(i, 'tokens.newTitle')}</h1><p class="lead">${th(i, 'tokens.createDesc')}</p>
+<form method="post" action="/tokens"><input type="hidden" name="_csrf" value="${esc(csrf)}">
+<label class="field">${th(i, 'connPage.nameLabel')}<input type="text" name="name" maxlength="60" placeholder="${th(i, 'tokens.namePlaceholder')}" required></label>
+<label class="field">${th(i, 'tokens.expiryLabel')}<select name="expiry" class="select">${options}</select></label>
+${permissionItems(i, { ceiling, selected })}
+<div class="row"><button class="btn btn-primary" type="submit">${th(i, 'tokens.createButton')}</button><a class="btn btn-secondary" href="/">${th(i, 'common.back')}</a></div>
+</form></div>`,
+  });
+}
+
+export function tokenCreatedPage(i, { user, csrf, token, name, mcpUrl }) {
+  const copied = esc(JSON.stringify(i.t('dash.copied')));
+  const copy = (id) =>
+    `<button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('${id}').value);this.textContent=${copied}">${th(i, 'dash.copy')}</button>`;
+  return layout(i, {
+    title: i.t('tokens.createdTitle'),
+    user,
+    csrf,
+    body: `<div class="card"><h1>${th(i, 'tokens.createdTitle')}</h1><p class="lead"><strong>${esc(name)}</strong></p>
+<div class="alert warn">${th(i, 'tokens.createdWarning')}</div>
+<label class="field">${th(i, 'tokens.token')}<div class="copy"><input type="text" id="tok" value="${esc(token)}" readonly class="mono">${copy('tok')}</div></label>
+<label class="field">${th(i, 'tokens.url')}<div class="copy"><input type="text" id="url" value="${esc(mcpUrl)}" readonly>${copy('url')}</div></label>
+<label class="field">${th(i, 'tokens.header')}<div class="copy"><input type="text" id="hdr" value="${esc(`Authorization: Bearer ${token}`)}" readonly class="mono">${copy('hdr')}</div></label>
+<p class="small muted">${th(i, 'tokens.howto')}</p>
+<a class="btn btn-secondary" href="/">${th(i, 'tokens.done')}</a></div>`,
   });
 }
 

@@ -15,14 +15,18 @@ import {
   sanitizePermissions,
   setRolePolicy,
 } from './permissions.js';
-import { consentPage, connectionPage, dashboardPage, loginPage, messagePage, rolesPage } from './views.js';
+import { consentPage, connectionPage, dashboardPage, loginPage, messagePage, rolesPage, tokenNewPage, tokenCreatedPage } from './views.js';
 import { normalizeLanguage, translator, DEFAULT_LANGUAGE } from './i18n.js';
-import { runSelfTest } from './selftest.js';
+import { logSelfTest, selfTestState } from './selftest.js';
 import { log } from './log.js';
+import { VERSION, latestBridgeRevision } from './version.js';
 
 const COOKIE = 'fmb_session';
 // Merkt sich die zuletzt genutzte Sprache, damit schon die Login-Seite passt.
 const LANG_COOKIE = 'fmb_lang';
+// Verbindungen samt Ablaufdatum fester Tokens.
+const GRANT_LIST = 'SELECT g.*, s.expires_at AS token_expires_at FROM grants g LEFT JOIN static_tokens s ON s.grant_id = g.id';
+const TOKEN_EXPIRY_DAYS = { 30: 30, 90: 90, 365: 365, never: null };
 const FLASH = { saved: 'flash.saved', revoked: 'flash.revoked', rolesSaved: 'flash.rolesSaved' };
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS_PER_IP = 10;
@@ -71,7 +75,6 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
   const router = express.Router();
   const limiter = new FailureLimiter();
   const secureCookie = config.publicUrl.startsWith('https://');
-  let selfTestCache = { at: 0, checks: [] };
 
   router.use(express.urlencoded({ extended: false, limit: '50kb' }));
   router.use((req, res, next) => {
@@ -236,11 +239,11 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
 
   // ---- Übersicht ---------------------------------------------------------------------------
   router.get('/', requireLogin, async (req, res) => {
-    const myGrants = db.prepare('SELECT * FROM grants WHERE user_id = ? ORDER BY created_at DESC').all(req.user.userId);
+    const myGrants = db.prepare(`${GRANT_LIST} WHERE g.user_id = ? ORDER BY g.created_at DESC`).all(req.user.userId);
     let otherGrants = [];
     let checks = [];
     if (req.user.isAdmin) {
-      otherGrants = db.prepare('SELECT * FROM grants WHERE user_id <> ? ORDER BY username, created_at DESC').all(req.user.userId);
+      otherGrants = db.prepare(`${GRANT_LIST} WHERE g.user_id <> ? ORDER BY g.username, g.created_at DESC`).all(req.user.userId);
       for (const grant of otherGrants) {
         try {
           grant.isAdmin = !!(await fredy.whoIs(grant.username))?.isAdmin;
@@ -248,10 +251,8 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
           grant.isAdmin = false;
         }
       }
-      if (Date.now() - selfTestCache.at > 5 * 60 * 1000) {
-        selfTestCache = { at: Date.now(), checks: await runSelfTest({ fredy, config, db }) };
-      }
-      checks = selfTestCache.checks;
+      // Der Selbsttest läuft ohnehin alle 5 Minuten; nur wenn er noch nie lief, jetzt sofort.
+      checks = selfTestState.at ? selfTestState.checks : await logSelfTest({ fredy, config, db });
     }
     let proxyOk = null;
     try {
@@ -260,6 +261,7 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
       proxyOk = null;
     }
     const ceilings = Object.fromEntries(Object.keys(ROLES).map((role) => [role, getRolePolicy(db, role)]));
+    const versions = req.user.isAdmin ? await loadVersions(req.user.username) : null;
     res.send(
       dashboardPage(req.i, {
         user: req.user,
@@ -270,10 +272,54 @@ export function createWebRouter({ db, fredy, upstream, oauth, config }) {
         ceilings,
         proxyOk,
         checks,
+        versions,
         flash: FLASH[req.query.ok] || null,
       }),
     );
   });
+
+  // ---- Feste Zugangs-Tokens ----------------------------------------------------------------
+  router.get('/tokens/new', requireLogin, (req, res) => {
+    const ceiling = getRolePolicy(db, roleOf(req.user));
+    res.send(tokenNewPage(req.i, { user: req.user, csrf: req.csrf, ceiling, selected: defaultPermissions(ceiling) }));
+  });
+
+  router.post('/tokens', requireLogin, checkCsrf, (req, res) => {
+    const ceiling = new Set(getRolePolicy(db, roleOf(req.user)));
+    const permissions = sanitizePermissions(list(req.body.perm)).filter((key) => ceiling.has(key));
+    const name =
+      String(req.body.name ?? '')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 60) || req.i.t('tokens.defaultName');
+    const expiry = Object.hasOwn(TOKEN_EXPIRY_DAYS, req.body.expiry) ? TOKEN_EXPIRY_DAYS[req.body.expiry] : 90;
+    const { token } = oauth.createStaticToken({
+      userId: req.user.userId,
+      username: req.user.username,
+      name,
+      permissions,
+      expiresInDays: expiry,
+    });
+    log.info(`Access token created by ${req.user.username}: ${name} [${permissions.join(', ')}], expires in ${expiry ?? '∞'} days`);
+    // Direkt anzeigen statt weiterleiten: Der Token darf in keiner URL und keinem Verlauf landen.
+    res.send(tokenCreatedPage(req.i, { user: req.user, csrf: req.csrf, token, name, mcpUrl: config.mcpUrl }));
+  });
+
+  // ---- Versionen (Admin-Übersicht) ----------------------------------------------------------
+  let fredyVersionCache = { at: 0, value: null };
+  async function loadVersions(username) {
+    if (Date.now() - fredyVersionCache.at > 10 * 60 * 1000) {
+      const res = await fredy.asUser(username, 'GET', '/api/version').catch(() => null);
+      fredyVersionCache = { at: Date.now(), value: res?.status === 200 ? res.data : null };
+    }
+    const latest = await latestBridgeRevision();
+    return {
+      bridge: VERSION,
+      bridgeUpdate: Boolean(VERSION.revision && latest?.sha && latest.sha !== VERSION.revision),
+      fredy: fredyVersionCache.value,
+    };
+  }
 
   // ---- Einzelne Verbindung -----------------------------------------------------------------
   const loadGrant = (req, res, next) => {

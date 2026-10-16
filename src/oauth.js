@@ -8,7 +8,7 @@
  */
 
 import { InvalidGrantError, InvalidTargetError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
-import { randomToken, sha256, now } from './db.js';
+import { randomToken, sha256, now, STATIC_TOKEN_PREFIX } from './db.js';
 
 export const OAUTH_SCOPE = 'fredy';
 const CODE_TTL = 5 * 60;
@@ -170,6 +170,7 @@ export class BridgeOAuthProvider {
   }
 
   async verifyAccessToken(token) {
+    if (token.startsWith(STATIC_TOKEN_PREFIX)) return this.verifyStaticToken(token);
     const row = this.db
       .prepare(
         `SELECT t.*, g.id AS gid FROM tokens t JOIN grants g ON g.id = t.grant_id
@@ -185,6 +186,44 @@ export class BridgeOAuthProvider {
       resource: new URL(this.config.mcpUrl),
       extra: { grantId: row.grant_id },
     };
+  }
+
+  /** Fester Zugangs-Token (Verbindung vom Typ „token“). */
+  verifyStaticToken(token) {
+    const row = this.db
+      .prepare(
+        `SELECT s.*, g.client_id FROM static_tokens s JOIN grants g ON g.id = s.grant_id WHERE s.token_hash = ?`,
+      )
+      .get(sha256(token));
+    if (!row || (row.expires_at && row.expires_at < now())) throw new InvalidTokenError('Invalid or expired access token');
+    return {
+      token,
+      clientId: row.client_id,
+      scopes: [OAUTH_SCOPE],
+      // Das SDK verlangt ein Ablaufdatum; ohne eigenes gilt der Token jeweils eine Stunde ab jetzt.
+      expiresAt: row.expires_at ?? now() + 3600,
+      resource: new URL(this.config.mcpUrl),
+      extra: { grantId: row.grant_id },
+    };
+  }
+
+  /** Legt eine Token-Verbindung an und gibt den Klartext-Token einmalig zurück. */
+  createStaticToken({ userId, username, name, permissions, expiresInDays }) {
+    const t = now();
+    const grantId = randomToken(12);
+    const token = `${STATIC_TOKEN_PREFIX}${randomToken(32)}`;
+    this.db.transaction(() => {
+      this.db
+        .prepare(
+          `INSERT INTO grants (id, user_id, username, client_id, client_name, redirect_host, permissions, kind, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, 'token', ?, ?)`,
+        )
+        .run(grantId, userId, username, `token:${grantId}`, name, JSON.stringify(permissions), t, t);
+      this.db
+        .prepare('INSERT INTO static_tokens (token_hash, grant_id, prefix, created_at, expires_at) VALUES (?, ?, ?, ?, ?)')
+        .run(sha256(token), grantId, token.slice(0, 10), t, expiresInDays ? t + expiresInDays * 86400 : null);
+    })();
+    return { grantId, token };
   }
 
   async revokeToken(client, request) {

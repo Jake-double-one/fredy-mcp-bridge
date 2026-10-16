@@ -25,6 +25,11 @@ MCP-Client (Claude.ai, ChatGPT, …)
   nachladen (wie „Aktualisieren“ bei der Beschreibung; gebremst auf einen Abruf gleichzeitig und
   `DETAILS_REFRESH_PER_HOUR` pro Stunde, Standard 20).
 - **OAuth für Remote-Connectoren** mit eigener Login-Seite – angemeldet wird mit dem **Fredy-Konto**.
+- **Zugangs-Tokens für Clients ohne OAuth** (OpenClaw, n8n, Skripte): auf der Übersicht erzeugen,
+  mit Rechten und Gültigkeit (30/90/365 Tage oder ohne Ablauf). Ein Token ist eine normale Verbindung
+  – umbenennen, Rechte ändern, trennen. Senden als `Authorization: Bearer fmb_…` an `/mcp`.
+- **Fredys eigene Hinweise** für Sprachmodelle werden zusammen mit denen der Bridge an den Client
+  weitergereicht.
 - **Rechte pro Verbindung:** Was Fredy anbietet, ist standardmäßig an; alle Zusätze sind Opt-in.
   Einzelne Fredy-Tools lassen sich pro Verbindung sperren. Verbindungen jederzeit trennbar.
 - **Rollen-Obergrenzen:** Admins legen fest, was Fredy-Admins bzw. normale Benutzer überhaupt
@@ -91,8 +96,12 @@ drei Prüfungen grün sein. Danach im MCP-Client die Connector-URL `https://<bri
 
 - **Daten:** `/data/bridge.sqlite` (Verbindungen, Rechte, Tokens als Hash). Fredys Datenbank wird nie
   angefasst.
-- **Selbsttest:** beim Start, stündlich und auf der Admin-Übersicht. Ändert Fredy seine interne
-  REST-API, steht das deutlich im Log (`!!! Selbsttest …`) und unter *Zustand*.
+- **Selbsttest und Healthcheck:** alle 5 Minuten (nach einem Fehler nach 30 Sekunden). Schlägt eine
+  Prüfung fehl – Fredy nicht erreichbar, API geändert, Proxy-Anmeldung kaputt –, meldet `/healthz`
+  HTTP 503 und Docker/Portainer zeigt den Container als *unhealthy*. Ins Log schreibt die Bridge nur
+  bei Änderungen (`!!! Self-test …`), Details stehen unter *Zustand*.
+- **Versionen:** Unter *Zustand* (Admins) stehen Bridge-Version, Commit, Build-Datum und Fredys
+  Version, jeweils mit Hinweis, wenn es Neueres gibt; die Fußzeile zeigt die Bridge-Version.
 - **Wenn Fredy die Zusätze selbst mitbringt:** Ein gleichnamiges Fredy-Tool ersetzt automatisch das
   Bridge-Tool.
 - **Tokens:** Access-Token 1 h, Refresh-Token 30 Tage (rotierend; ein wiederverwendeter alter
