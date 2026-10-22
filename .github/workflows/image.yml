@@ -5,6 +5,10 @@ on:
     branches: ["**"]
     tags: ["v*"]
   pull_request:
+  # Wöchentlicher Neubau: holt Sicherheits-Updates des Basis-Images (Debian, Node), auch wenn sich
+  # am Code nichts ändert. Danach in Portainer „Re-pull image“.
+  schedule:
+    - cron: "43 4 * * 0"   # sonntags 04:43 UTC
   workflow_dispatch:
 
 concurrency:
@@ -62,6 +66,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

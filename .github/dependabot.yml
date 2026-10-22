@@ -1,0 +1,29 @@
+# Automatische Update-Vorschläge als Pull Request.
+# Sicherheits-Updates kommen zusätzlich sofort, sobald „Dependabot alerts“ und
+# „Dependabot security updates“ in den Repo-Einstellungen aktiv sind.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      # Kleine Updates gebündelt in einem PR statt vieler einzelner
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

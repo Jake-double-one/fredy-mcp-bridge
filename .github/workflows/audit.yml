@@ -1,0 +1,60 @@
+name: Dependency audit
+
+# Bei jedem Push und zusätzlich wöchentlich: Neue Sicherheitslücken werden auch dann bekannt,
+# wenn sich am Code nichts ändert.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"   # montags 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm:
+    name: npm audit (Laufzeit-Abhängigkeiten)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Schlägt bei Lücken ab „high“ fehl. Entwicklungs-Abhängigkeiten zählen nicht – sie landen nie im Image.
+      - run: npm audit --omit=dev --audit-level=high
+
+  image:
+    name: Image-Scan (Debian, Node, npm-Pakete)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write   # Ergebnisse im Tab „Security → Code scanning“
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Image bauen (ohne Push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          pull: true
+          tags: fredy-mcp-bridge:audit
+      - name: Trivy – Bericht für GitHub
+        if: always()
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" aquasec/trivy:latest \
+            image --scanners vuln --ignore-unfixed --severity CRITICAL,HIGH,MEDIUM \
+            --format sarif --output /out/trivy.sarif fredy-mcp-bridge:audit
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy.sarif') != ''
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-image
+      # Schlägt fehl, wenn es für eine kritische oder hohe Lücke schon einen Fix gibt –
+      # dann reicht meist ein Neubau oder ein Paket-Update.
+      - name: Trivy – kritische und hohe Lücken mit verfügbarem Fix
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+            image --scanners vuln --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 fredy-mcp-bridge:audit

@@ -115,6 +115,17 @@ drei Prüfungen grün sein. Danach im MCP-Client die Connector-URL `https://<bri
 - **Tokens:** Access-Token 1 h, Refresh-Token 30 Tage (rotierend; ein wiederverwendeter alter
   Refresh-Token widerruft die Token-Familie).
 
+## Sicherheit und Updates
+
+- **Dependency-Audit** (`.github/workflows/audit.yml`): bei jedem Push und montags automatisch –
+  `npm audit` für die Laufzeit-Pakete und ein Trivy-Scan des fertigen Images (Debian-Pakete, Node,
+  npm-Pakete). Rot wird er bei kritischen oder hohen Lücken, für die es schon einen Fix gibt; alle
+  Funde ab „mittel“ erscheinen unter *Security → Code scanning*.
+- **Dependabot** (`.github/dependabot.yml`) schlägt Updates für npm-Pakete, das Docker-Basis-Image und
+  die GitHub Actions als Pull Request vor.
+- **Wöchentlicher Neubau** (sonntags): Das Image spielt beim Bau die Debian-Sicherheitsupdates ein,
+  `:latest` ist also höchstens eine Woche alt. In Portainer per „Re-pull image“ übernehmen.
+
 ## Entwicklung
 
 ```bash

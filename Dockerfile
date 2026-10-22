@@ -26,6 +26,11 @@ ENV NODE_ENV=production \
     DATA_DIR=/data \
     TZ=Europe/Berlin
 WORKDIR /app
+# Debian-Sicherheitsupdates beim Bau einspielen – das offizielle Node-Image hinkt manchmal
+# ein paar Tage hinterher. Zusammen mit dem wöchentlichen Neubau bleibt das Image so aktuell.
+RUN apt-get update \
+ && apt-get -y upgrade \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
