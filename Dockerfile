@@ -31,6 +31,10 @@ WORKDIR /app
 RUN apt-get update \
  && apt-get -y upgrade \
  && rm -rf /var/lib/apt/lists/*
+# npm, Yarn und Corepack braucht die Bridge zur Laufzeit nicht (installiert wird in der Build-Stufe).
+# Raus damit: weniger Angriffsfläche, und Lücken in npms eigenen Paketen betreffen das Image nicht mehr.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src

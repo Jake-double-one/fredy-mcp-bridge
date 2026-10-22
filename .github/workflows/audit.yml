@@ -41,6 +41,11 @@ jobs:
           load: true
           pull: true
           tags: fredy-mcp-bridge:audit
+      - name: Starttest – alle Module laden, npm darf fehlen
+        run: |
+          docker run --rm --entrypoint node fredy-mcp-bridge:audit \
+            -e "import('/app/src/index.js').then(() => console.log('modules ok'))"
+          if docker run --rm --entrypoint sh fredy-mcp-bridge:audit -c 'command -v npm'; then echo 'npm should not be in the image'; exit 1; fi
       - name: Trivy – Bericht für GitHub
         if: always()
         run: |
