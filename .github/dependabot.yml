@@ -19,6 +19,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      # Keine Sprünge auf eine neue Node-Hauptversion (ungerade Versionen sind kurzlebig, ohne LTS).
+      # Der Wechsel auf die nächste LTS-Version passiert bewusst von Hand.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
