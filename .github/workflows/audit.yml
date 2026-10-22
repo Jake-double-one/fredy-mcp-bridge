@@ -18,8 +18,8 @@ jobs:
     name: npm audit (Laufzeit-Abhängigkeiten)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       # Schlägt bei Lücken ab „high“ fehl. Entwicklungs-Abhängigkeiten zählen nicht – sie landen nie im Image.
@@ -32,10 +32,10 @@ jobs:
       contents: read
       security-events: write   # Ergebnisse im Tab „Security → Code scanning“
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
       - name: Image bauen (ohne Push)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
